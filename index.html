@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DACN Group Test Node</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #e5ddd5; margin: 0; padding: 20px; }
+        .group-container { max-width: 500px; margin: auto; background: white; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); overflow: hidden; display: flex; flex-direction: column; height: 90vh; }
+        .header { background: #075e54; color: white; padding: 15px; text-align: center; }
+        #chat-window { flex: 1; padding: 15px; overflow-y: auto; background: #e5ddd5; display: flex; flex-direction: column; }
+        .msg { margin: 5px 0; padding: 10px; border-radius: 8px; max-width: 80%; word-wrap: break-word; }
+        .sent { background: #dcf8c6; align-self: flex-end; }
+        .received { background: white; align-self: flex-start; }
+        .input-area { padding: 15px; background: #f0f0f0; display: flex; gap: 10px; }
+        input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 20px; outline: none; }
+        button { background: #075e54; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="group-container">
+    <div class="header">
+        <h3>DACN Decentralized Group</h3>
+        <small>আপনার আইডি: <span id="my-id">...</span></small>
+    </div>
+    
+    <div id="chat-window"></div>
+
+    <div class="input-area">
+        <input type="text" id="peer-id-input" placeholder="বন্ধুর আইডি দিয়ে গ্রুপে যোগ দিন">
+        <button onclick="joinGroup()">Add</button>
+    </div>
+
+    <div class="input-area">
+        <input type="text" id="message-input" placeholder="মেসেজ লিখুন...">
+        <button onclick="broadcastMessage()">Send</button>
+    </div>
+</div>
+
+<script>
+    const peer = new Peer();
+    const connections = [];
+    const chatWindow = document.getElementById('chat-window');
+
+    peer.on('open', id => {
+        document.getElementById('my-id').innerText = id;
+    });
+
+    // কেউ আপনাকে অ্যাড করলে
+    peer.on('connection', conn => {
+        addConnection(conn);
+    });
+
+    // আপনি কাউকে অ্যাড করলে
+    function joinGroup() {
+        const id = document.getElementById('peer-id-input').value;
+        if (id) {
+            const conn = peer.connect(id);
+            addConnection(conn);
+        }
+    }
+
+    function addConnection(conn) {
+        conn.on('open', () => {
+            if (!connections.find(c => c.peer === conn.peer)) {
+                connections.push(conn);
+                appendMessage("সিস্টেম", `${conn.peer} গ্রুপে যুক্ত হয়েছে`, 'received');
+            }
+            
+            conn.on('data', data => {
+                // Gossip: প্রাপ্ত মেসেজটি অন্যান্য কানেক্টেড বন্ধুদের কাছে পাঠিয়ে দেওয়া
+                appendMessage("বন্ধু", data, 'received');
+            });
+        });
+    }
+
+    function broadcastMessage() {
+        const msg = document.getElementById('message-input').value;
+        if (!msg) return;
+
+        // নিজের উইন্ডোতে দেখানো
+        appendMessage("আপনি", msg, 'sent');
+
+        // সব নোড বা বন্ধুদের কাছে পাঠানো
+        connections.forEach(conn => {
+            if (conn.open) {
+                conn.send(msg);
+            }
+        });
+
+        document.getElementById('message-input').value = "";
+    }
+
+    function appendMessage(user, text, type) {
+        const div = document.createElement('div');
+        div.className = `msg ${type}`;
+        div.innerHTML = `<strong>${user}:</strong><br>${text}`;
+        chatWindow.appendChild(div);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+</script>
+
+</body>
+</html>

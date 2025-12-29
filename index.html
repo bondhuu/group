@@ -3,152 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DACN - Decentralized Storage Node</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <title>DACN - Peer Node v2.0</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #121212; color: #e0e0e0; padding: 20px; }
-        .container { max-width: 600px; margin: auto; background: #1e1e1e; padding: 20px; border-radius: 12px; border: 1px solid #333; }
-        h2 { color: #00ff88; text-align: center; }
-        #node-id { background: #333; padding: 5px 10px; border-radius: 5px; color: #ffcc00; font-family: monospace; }
-        .status-box { font-size: 14px; margin: 10px 0; color: #bbb; }
-        #chat-window { height: 250px; border: 1px solid #444; background: #000; overflow-y: auto; padding: 10px; border-radius: 8px; margin: 15px 0; }
-        .msg-shard { font-size: 12px; color: #666; font-family: monospace; word-break: break-all; border-bottom: 1px solid #222; margin-bottom: 5px; }
-        .input-group { display: flex; gap: 10px; margin-bottom: 10px; }
-        input { flex: 1; padding: 10px; background: #222; border: 1px solid #444; color: white; border-radius: 5px; }
-        button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a0a; color: #00ff88; margin: 0; padding: 15px; }
+        .app-card { background: #161616; border: 1px solid #333; border-radius: 15px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h2 { margin-top: 0; text-align: center; color: #fff; text-transform: uppercase; letter-spacing: 2px; }
+        .info { background: #222; padding: 10px; border-radius: 8px; font-size: 13px; color: #aaa; margin-bottom: 15px; }
+        #my-id { color: #00ff88; font-weight: bold; word-break: break-all; }
+        #log-window { height: 200px; background: #000; border: 1px solid #222; border-radius: 8px; overflow-y: auto; padding: 10px; font-family: monospace; font-size: 12px; color: #00ccff; margin-bottom: 15px; }
+        .input-box { width: 100%; padding: 12px; background: #222; border: 1px solid #444; color: #fff; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box; outline: none; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 8px; transition: 0.3s; }
         .btn-connect { background: #007bff; color: white; }
-        .btn-send { background: #00ff88; color: #000; width: 100%; }
-        .btn-read { background: #ffcc00; color: #000; margin-top: 10px; width: 100%; }
+        .btn-send { background: #00ff88; color: #000; }
+        .btn-read { background: #ffcc00; color: #000; }
+        .shard-item { border-bottom: 1px solid #333; padding: 5px 0; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>DACN NODE</h2>
-    <p class="status-box">আপনার নোড আইডি: <span id="node-id">লোডিং...</span></p>
-    <p class="status-box">অনলাইন বন্ধু: <span id="peer-count">0</span> জন</p>
+<div class="app-card">
+    <h2>DACN Node</h2>
+    <div class="info">নোড আইডি: <span id="my-id">জেনারেট হচ্ছে...</span></div>
     
-    <div class="input-group">
-        <input type="text" id="friend-id" placeholder="বন্ধুর আইডি দিন">
-        <button class="btn-connect" onclick="connectToFriend()">Connect</button>
-    </div>
+    <div id="log-window">-- সিস্টেম স্ট্যাটাস: অনলাইন --<br></div>
 
-    <div id="chat-window">
-        <div style="color: #888; text-align: center;">-- সংরক্ষিত ডেটা শার্ডস (Shards) --</div>
-    </div>
+    <input type="text" id="target-id" class="input-box" placeholder="বন্ধুর আইডি দিন (Connect)">
+    <button class="btn btn-connect" onclick="connect()">কানেক্ট করুন</button>
 
-    <input type="text" id="main-input" placeholder="আপনার গোপন তথ্য লিখুন...">
-    <button class="btn-send" onclick="sendSecureData()">তথ্যটি টুকরো করে ছড়িয়ে দিন</button>
-    <button class="btn-read" onclick="assembleAndShow()">তথ্য উদ্ধার করে পড়ুন</button>
+    <hr style="border: 0; border-top: 1px solid #333; margin: 15px 0;">
+
+    <input type="text" id="secret-msg" class="input-box" placeholder="গোপন মেসেজ লিখুন...">
+    <button class="btn btn-send" onclick="shardAndDistribute()">শার্ড করে ছড়িয়ে দিন</button>
+    <button class="btn btn-read" onclick="readFullData()">তথ্য উদ্ধার করুন</button>
 </div>
 
 <script>
-    let peer = new Peer();
-    let connections = [];
-    let db;
+    let peer, conn_list = [], db;
 
-    // ১. IndexedDB সেটআপ (লোকাল স্টোরেজ)
-    const request = indexedDB.open("DACN_Storage", 1);
-    request.onupgradeneeded = e => {
+    // ১. IndexedDB (ব্রাউজার স্টোরেজ) চালু করা
+    const dbReq = indexedDB.open("DACN_v2", 1);
+    dbReq.onupgradeneeded = e => e.target.result.createObjectStore("shards", { keyPath: "id", autoIncrement: true });
+    dbReq.onsuccess = e => { 
         db = e.target.result;
-        db.createObjectStore("shards", { keyPath: "id", autoIncrement: true });
-    };
-    request.onsuccess = e => {
-        db = e.target.result;
-        renderStoredShards();
+        addToLog("সিস্টেম: লোকাল স্টোরেজ প্রস্তুত।");
     };
 
-    // ২. পিয়ার কানেকশন লজিক
-    peer.on('open', id => document.getElementById('node-id').innerText = id);
-    peer.on('connection', conn => handleConnection(conn));
+    // ২. PeerJS নোড সেটআপ
+    function startNode() {
+        peer = new Peer();
 
-    function connectToFriend() {
-        const id = document.getElementById('friend-id').value;
-        if(id) handleConnection(peer.connect(id));
+        peer.on('open', id => {
+            document.getElementById('my-id').innerText = id;
+            addToLog("সিস্টেম: আপনার নোড সফলভাবে চালু হয়েছে।");
+        });
+
+        peer.on('connection', c => {
+            addToLog(`কানেকশন: ${c.peer} আপনার সাথে যুক্ত হয়েছে।`);
+            setupConn(c);
+        });
+
+        peer.on('error', err => {
+            addToLog(`এরর: ${err.type}`);
+            console.error(err);
+        });
     }
 
-    function handleConnection(conn) {
-        conn.on('open', () => {
-            if(!connections.find(c => c.peer === conn.peer)) {
-                connections.push(conn);
-                document.getElementById('peer-count').innerText = connections.length;
+    function connect() {
+        const id = document.getElementById('target-id').value;
+        if (!id) return alert("আইডি দিন!");
+        const c = peer.connect(id);
+        setupConn(c);
+    }
+
+    function setupConn(c) {
+        c.on('open', () => {
+            if (!conn_list.find(x => x.peer === c.peer)) {
+                conn_list.push(c);
+                addToLog(`সফল: ${c.peer}-এর সাথে কানেক্টেড।`);
             }
-            conn.on('data', data => {
-                saveShard(data);
-                renderStoredShards();
+            c.on('data', data => {
+                saveData(data);
+                addToLog(`রিসিভ: একটি নতুন ডাটা শার্ড এসেছে।`);
             });
         });
     }
 
-    // ৩. শার্ডিং এবং ডিস্ট্রিবিউশন (Sharding & Distribution)
-    function sendSecureData() {
-        const text = document.getElementById('main-input').value;
-        if(!text) return;
+    // ৩. ডাটা শার্ডিং এবং ১০০০ কপি লজিক (সিমুলেশন)
+    function shardAndDistribute() {
+        const text = document.getElementById('secret-msg').value;
+        if (!text) return;
+        if (conn_list.length === 0) return alert("আগে অন্তত একজনকে কানেক্ট করুন!");
 
-        const peerCount = connections.length + 1;
-        const shardSize = Math.max(1, Math.ceil(text.length / peerCount));
         const msgId = Date.now();
+        const totalNodes = conn_list.length + 1;
+        const shardSize = Math.ceil(text.length / totalNodes);
 
-        for (let i = 0; i < peerCount; i++) {
+        for (let i = 0; i < totalNodes; i++) {
             let part = text.substring(i * shardSize, (i + 1) * shardSize);
-            // হিজিবিজি কোড (Base64 Encryption)
-            let encryptedPart = btoa(part);
+            let encrypted = btoa(part); // Base64 এনক্রিপশন (হিজিবিজি কোড)
+            let shard = { msgId, order: i, data: encrypted };
+
+            if (i === 0) saveData(shard); // নিজের জন্য রাখা
             
-            let shardObj = { msgId: msgId, order: i, data: encryptedPart, total: peerCount };
-
-            // নিজের ফোনে সেভ করা
-            if(i === 0) saveShard(shardObj);
-
             // নেটওয়ার্কের সবার কাছে কপি পাঠানো (Redundancy)
-            connections.forEach(conn => conn.send(shardObj));
+            conn_list.forEach(c => c.send(shard));
         }
-        document.getElementById('main-input').value = "";
-        alert("তথ্যটি সফলভাবে শার্ড করা হয়েছে এবং কপি ছড়িয়ে দেওয়া হয়েছে!");
-        renderStoredShards();
+        document.getElementById('secret-msg').value = "";
+        addToLog("সফল: ডাটা শার্ড করে নেটওয়ার্কে ছড়ানো হয়েছে।");
     }
 
-    // ৪. স্টোরেজ লজিক
-    function saveShard(obj) {
+    // ৪. স্টোরেজ এবং রিড ফাংশন
+    function saveData(obj) {
         const tx = db.transaction("shards", "readwrite");
         tx.objectStore("shards").add(obj);
     }
 
-    function renderStoredShards() {
-        const chatWindow = document.getElementById('chat-window');
-        chatWindow.innerHTML = "";
+    function readFullData() {
         const tx = db.transaction("shards", "readonly");
-        tx.objectStore("shards").openCursor().onsuccess = e => {
-            const cursor = e.target.result;
-            if (cursor) {
-                chatWindow.innerHTML += `<div class="msg-shard">Shard_ID: ${cursor.value.msgId} | Data: ${cursor.value.data}</div>`;
-                cursor.continue();
-            }
-        };
-    }
-
-    // ৫. ডাটা অ্যাসেম্বল (পুনরুদ্ধার)
-    function assembleAndShow() {
-        const tx = db.transaction("shards", "readonly");
-        let allShards = [];
         tx.objectStore("shards").getAll().onsuccess = e => {
-            allShards = e.target.result;
-            
-            // আইডি অনুযায়ী গ্রুপ করা (যেহেতু অনেক মেসেজ থাকতে পারে)
-            const latestMsgId = allShards[allShards.length - 1]?.msgId;
-            const relevantShards = allShards.filter(s => s.msgId === latestMsgId);
+            const all = e.target.result;
+            if (all.length === 0) return alert("কোনো ডাটা নেই!");
 
-            // ডুপ্লিকেট বাদ দিয়ে সাজানো
-            relevantShards.sort((a, b) => a.order - b.order);
-            let uniqueParts = [...new Map(relevantShards.map(item => [item.order, item])).values()];
+            // লেটেস্ট মেসেজ জোড়া লাগানো
+            const lastId = all[all.length-1].msgId;
+            let parts = all.filter(x => x.msgId === lastId)
+                           .sort((a,b) => a.order - b.order);
+            
+            // ডুপ্লিকেট রিমুভ (Redundancy handling)
+            let unique = [...new Map(parts.map(p => [p.order, p])).values()];
 
             try {
-                let decrypted = uniqueParts.map(p => atob(p.data)).join('');
-                alert("উদ্ধারকৃত মূল তথ্য: " + decrypted);
-            } catch(err) {
-                alert("তথ্যটি পূর্ণাঙ্গ নয় অথবা ডিক্রিপ্ট করা যাচ্ছে না!");
-            }
+                let finalMsg = unique.map(u => atob(u.data)).join('');
+                alert("উদ্ধারকৃত মেসেজ: " + finalMsg);
+            } catch(e) { alert("ডাটা ইনকমপ্লিট!"); }
         };
     }
+
+    function addToLog(txt) {
+        const win = document.getElementById('log-window');
+        win.innerHTML += `> ${txt}<br>`;
+        win.scrollTop = win.scrollHeight;
+    }
+
+    // অ্যাপ চালু করা
+    startNode();
 </script>
 
 </body>

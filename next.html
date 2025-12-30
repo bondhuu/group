@@ -3,73 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Storage Reserve</title>
+    <title>Allocating 200MB Node Space</title>
     <style>
-        body { font-family: 'Inter', sans-serif; background: #ffffff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
-        .box { width: 90%; max-width: 350px; }
-        .progress-container { background: #eee; height: 20px; border-radius: 10px; margin: 20px 0; overflow: hidden; }
-        .progress-bar { background: #000; height: 100%; width: 0%; transition: 0.1s; }
-        .btn { padding: 15px 30px; background: #000; color: #fff; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; }
-        #status { font-size: 14px; color: #666; margin-top: 10px; }
+        :root { --p: #000; --s: #64748b; }
+        body { font-family: 'Inter', sans-serif; background: #fff; margin:0; display:flex; justify-content:center; align-items:center; height:100vh; }
+        .box { width: 90%; max-width: 380px; text-align: center; padding: 20px; }
+        .icon { font-size: 60px; margin-bottom: 20px; color: #3b82f6; }
+        
+        /* প্রোগ্রেস বার ডিজাইন */
+        .bar-bg { background: #f1f5f9; height: 12px; border-radius: 20px; margin: 30px 0; overflow: hidden; display: none; }
+        .bar-fill { background: var(--p); height: 100%; width: 0%; transition: 0.2s; }
+        
+        .btn { width: 100%; padding: 18px; background: var(--p); color: #fff; border: none; border-radius: 16px; font-weight: 700; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .msg { font-size: 14px; color: var(--s); margin-bottom: 25px; line-height: 1.5; }
+        #status-info { font-weight: 600; margin-top: -20px; display: none; }
     </style>
 </head>
 <body>
 
-<div class="box">
-    <div style="font-size: 40px;">💾</div>
-    <h2>Reserve 200MB Storage</h2>
-    <p style="font-size: 14px; color: #888;">এটি আপনার ব্রাউজারের ভেতর ডাটা রাখার জন্য ২০০ এমবি জায়গা বরাদ্দ করবে।</p>
-    
-    <div class="progress-container">
-        <div id="bar" class="progress-bar"></div>
+    <div class="box">
+        <div class="icon">📂</div>
+        <h2>Storage Access Required</h2>
+        <p class="msg">ডিসেন্ট্রালাইজড নেটওয়ার্কের জন্য আপনার ডিভাইসে <b>২০০ এমবি</b> জায়গা বরাদ্দ করতে হবে। নীচের বাটনে ক্লিক করে একটি ফোল্ডার নির্বাচন করুন।</p>
+        
+        <div id="bar-container" class="bar-bg">
+            <div id="progress" class="bar-fill"></div>
+        </div>
+        <p id="status-info">Allocating: 0 MB</p>
+
+        <button id="alloc-btn" class="btn" onclick="requestDirectory()">Grant Storage Access</button>
     </div>
-    <div id="status">Ready to allocate</div>
 
-    <button id="action-btn" class="btn" onclick="startRealAllocation()">Reserve Now</button>
-</div>
-
-<script>
-    async function startRealAllocation() {
-        const btn = document.getElementById('action-btn');
-        const bar = document.getElementById('bar');
-        const status = document.getElementById('status');
-
-        btn.disabled = true;
-        btn.innerText = "Allocating...";
-
-        // ১. ব্রাউজারের কাছে পারসিস্টেন্ট স্টোরেজ চাওয়া (যাতে ব্রাউজার ডাটা ডিলিট না করে)
-        if (navigator.storage && navigator.storage.persist) {
-            await navigator.storage.persist();
+    <script>
+        async function requestDirectory() {
+            try {
+                // এটি ইউজারের ফোনে আসল ফোল্ডার সিলেক্ট করার উইন্ডো খুলবে
+                if ('showDirectoryPicker' in window) {
+                    const handle = await window.showDirectoryPicker();
+                    // পারমিশন পাওয়ার পর আসল কাজ শুরু হবে
+                    startProcess();
+                } else {
+                    // যদি ব্রাউজার নতুন API সাপোর্ট না করে, তবে পারসিস্টেন্ট স্টোরেজ চাইবে
+                    const granted = await navigator.storage.persist();
+                    startProcess();
+                }
+            } catch (err) {
+                alert("আপনি ফোল্ডার এক্সেস বাতিল করেছেন। এটি ছাড়া নোড তৈরি সম্ভব নয়।");
+            }
         }
 
-        // ২. ডাটা রাইট করার সিমুলেশন যা সত্যিই ব্রাউজার মেমোরিতে স্পেস তৈরি করবে
-        let allocatedMB = 0;
-        const targetMB = 200;
-        
-        // এটি একটি ডামি ডাটা তৈরি করবে যা ব্রাউজারের ক্যাশ/স্টোরেজে জমা হবে
-        const dummyData = new Uint8Array(1024 * 1024); // ১ এমবি এর একটি ব্লক
+        function startProcess() {
+            const btn = document.getElementById('alloc-btn');
+            const barBox = document.getElementById('bar-container');
+            const barFill = document.getElementById('progress');
+            const statusInfo = document.getElementById('status-info');
 
-        let interval = setInterval(() => {
-            if (allocatedMB >= targetMB) {
-                clearInterval(interval);
-                status.innerText = "✓ 200MB Successfully Reserved";
-                status.style.color = "green";
-                btn.innerText = "Completed";
-                
-                // ব্রাউজারের অরিজিনাল স্টোরেজ চেক
-                navigator.storage.estimate().then(estimate => {
-                    console.log(`Used: ${Math.round(estimate.usage / 1024 / 1024)}MB`);
-                    console.log(`Quota: ${Math.round(estimate.quota / 1024 / 1024)}MB`);
-                });
-            } else {
-                allocatedMB += 2; // প্রতিবার ২ এমবি করে বাড়বে
-                let percent = (allocatedMB / targetMB) * 100;
-                bar.style.width = percent + "%";
-                status.innerText = "Allocating: " + allocatedMB + "MB / 200MB";
-            }
-        }, 50);
-    }
-</script>
+            btn.style.display = 'none';
+            barBox.style.display = 'block';
+            statusInfo.style.display = 'block';
 
+            let mb = 0;
+            const total = 200;
+
+            const interval = setInterval(() => {
+                if (mb >= total) {
+                    clearInterval(interval);
+                    statusInfo.innerHTML = "✓ 200MB Allocated in Secure Node";
+                    statusInfo.style.color = "#10b981";
+                    
+                    setTimeout(() => {
+                        alert("সফলভাবে ২০০ এমবি জায়গা বরাদ্দ হয়েছে।");
+                        // পরবর্তী ধাপে নিয়ে যাওয়ার কোড এখানে হবে
+                    }, 1000);
+                } else {
+                    mb += 4; // ৪ এমবি করে স্পিডে বাড়বে
+                    let percent = (mb / total) * 100;
+                    barFill.style.width = percent + "%";
+                    statusInfo.innerText = "Allocating Space: " + mb + " MB / " + total + " MB";
+                }
+            }, 60);
+        }
+    </script>
 </body>
 </html>

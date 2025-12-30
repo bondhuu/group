@@ -2,17 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Minimal P2P Connect Demo</title>
+<title>Minimal P2P Connect Page</title>
 <style>
   body { font-family: Arial, sans-serif; padding: 20px; }
   input, button { padding: 5px; margin: 5px 0; }
-  #connect-section, #username-section, #network-page { margin-top: 20px; }
-  #network-page { display: none; }
+  #network-page { display: none; margin-top: 20px; }
 </style>
 </head>
 <body>
 
-<h2>Minimal P2P Connect Demo</h2>
+<h2>Minimal P2P Connection Demo</h2>
 
 <div id="id-section">
   <p>Your Browser ID: <span id="my-id"></span></p>
@@ -38,7 +37,7 @@
 </div>
 
 <script>
-// Generate a random unique ID for this browser session
+// Generate a unique ID for this browser (persistent using localStorage)
 let myID = localStorage.getItem('myID');
 if (!myID) {
   myID = 'ID-' + Math.random().toString(36).substr(2, 9);
@@ -46,10 +45,10 @@ if (!myID) {
 }
 document.getElementById('my-id').textContent = myID;
 
-// Load username if previously saved
+// Load saved username if exists
 let savedUsername = localStorage.getItem('username');
 
-// Minimal peer list (simulate network)
+// Minimal peer list to simulate network
 let peers = [];
 if (savedUsername) {
   document.getElementById('username-section').style.display = 'none';

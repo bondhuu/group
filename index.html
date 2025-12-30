@@ -1,42 +1,146 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>People Group</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decentralized Group Feed</title>
+<style>
+  body { font-family: sans-serif; background:#f5f5f5; margin:0; padding:20px; }
+  #feed { max-width:600px; margin:auto; }
+  .post { background:#fff; padding:10px; margin:10px 0; border-radius:5px; box-shadow:0 0 5px rgba(0,0,0,0.1);}
+  #newPost { display:flex; gap:5px; margin-bottom:20px; }
+  #newPost input, #newPost button { padding:10px; font-size:14px; }
+  #status { text-align:center; margin-bottom:10px; }
+</style>
 </head>
 <body>
 
-<div class="container">
+<div id="status">Connecting...</div>
 
-  <h1 id="country">🌍 Connecting…</h1>
-
-  <div id="login" class="card">
-    <button id="genKey">Generate Secret Key</button>
-    <input id="keyInput" placeholder="Enter Secret Key">
-    <button id="loginBtn">Enter Group</button>
-  </div>
-
-  <div id="app" style="display:none;">
-    <div class="card">
-      <textarea id="postText" placeholder="Write something..."></textarea>
-      <button id="postBtn">Post</button>
-    </div>
-
-    <div class="card">
-      <input id="pollQ" placeholder="Poll question">
-      <input id="pollA" placeholder="Option A">
-      <input id="pollB" placeholder="Option B">
-      <button id="pollBtn">Create Poll</button>
-    </div>
-
-    <div id="feed"></div>
-  </div>
-
+<div id="newPost">
+  <input type="text" id="postInput" placeholder="Write something...">
+  <button id="postBtn">Post</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
-<script src="app.js"></script>
+<div id="feed"></div>
+
+<script>
+// ----------------------------
+// Minimal P2P + Distributed Fraction Copy Simulation
+// ----------------------------
+
+// Simulated Local Storage for this peer
+let localPosts = []; // full posts for this peer
+
+// Max copies per post
+const MAX_COPIES = 30;
+
+// Simulated network (all live peers)
+let networkPeers = []; // array of {peerId, localPosts}
+
+// Unique ID for this peer (secret key)
+const peerId = crypto.randomUUID();
+console.log("Peer ID:", peerId);
+
+// Simulate Country Detection
+let country = "Bangladesh"; // fallback for demo
+document.getElementById('status').innerText = `Connected: ${country}`;
+
+// HTML Elements
+const feedEl = document.getElementById('feed');
+const postInput = document.getElementById('postInput');
+const postBtn = document.getElementById('postBtn');
+
+// ----------------------------
+// Helper: Render Feed
+// ----------------------------
+function renderFeed() {
+  // Merge all posts from network + local
+  let merged = [...localPosts];
+  networkPeers.forEach(peer => merged.push(...peer.localPosts));
+
+  // Remove duplicates by ID
+  const map = {};
+  merged.forEach(p => map[p.id] = p);
+  merged = Object.values(map);
+
+  // Sort by timestamp descending
+  merged.sort((a,b)=>b.timestamp - a.timestamp);
+
+  // Render
+  feedEl.innerHTML = "";
+  merged.forEach(p=>{
+    const div = document.createElement('div');
+    div.className = 'post';
+    div.innerHTML = `<strong>${p.author}</strong>: ${p.content}<br><small>${new Date(p.timestamp).toLocaleTimeString()}</small>`;
+    feedEl.appendChild(div);
+  });
+}
+
+// ----------------------------
+// Post Button Click
+// ----------------------------
+postBtn.addEventListener('click',()=>{
+  const text = postInput.value.trim();
+  if(!text) return;
+  postInput.value="";
+
+  // Create Post Object
+  const post = {
+    id: crypto.randomUUID(),
+    author: peerId,
+    content: text,
+    timestamp: Date.now(),
+    copies: MAX_COPIES
+  };
+
+  // Save full locally
+  localPosts.push(post);
+
+  // Broadcast fractionally to live peers
+  networkPeers.forEach(peer=>{
+    const fraction = Math.ceil(post.copies / (networkPeers.length + 1)); // simple distribution
+    const copyPost = {...post, copies: fraction};
+    peer.localPosts.push(copyPost);
+  });
+
+  renderFeed();
+});
+
+// ----------------------------
+// Simulate New Peer Joining
+// ----------------------------
+function joinNetwork(newPeer){
+  // Give fractional copies from existing posts
+  networkPeers.forEach(peer=>{
+    peer.localPosts.forEach(p=>{
+      const fraction = Math.ceil(p.copies / (networkPeers.length + 2)); // distribute evenly
+      const copyPost = {...p, copies: fraction};
+      newPeer.localPosts.push(copyPost);
+    });
+  });
+
+  // Add new peer to network
+  networkPeers.push(newPeer);
+
+  renderFeed();
+}
+
+// ----------------------------
+// Demo: Add a simulated peer after 5 sec
+// ----------------------------
+setTimeout(()=>{
+  const newPeer = {peerId: crypto.randomUUID(), localPosts: []};
+  joinNetwork(newPeer);
+  console.log("New peer joined:", newPeer.peerId);
+  renderFeed();
+},5000);
+
+// ----------------------------
+// Initial Render
+// ----------------------------
+renderFeed();
+</script>
+
 </body>
 </html>

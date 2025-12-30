@@ -3,79 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Location Check</title>
+    <title>Secure Location Sync</title>
     <style>
+        * { box-sizing: border-box; }
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f172a;
+            color: white;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
-            background-color: #f0f2f5;
+            overflow: hidden;
         }
-        .message-box {
+        .card {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
             text-align: center;
-            padding: 20px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 350px;
+            width: 90%;
+            border: 1px solid #334155;
         }
+        .icon-circle {
+            width: 80px;
+            height: 80px;
+            background: #334155;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 20px;
+            font-size: 35px;
+            transition: all 0.5s ease;
+        }
+        .pulse {
+            animation: pulse-animation 2s infinite;
+        }
+        @keyframes pulse-animation {
+            0% { box-shadow: 0 0 0 0px rgba(59, 130, 246, 0.5); }
+            100% { box-shadow: 0 0 0 20px rgba(59, 130, 246, 0); }
+        }
+        h2 { margin: 10px 0; font-size: 22px; }
+        p { color: #94a3b8; font-size: 14px; line-height: 1.5; }
+        .btn-settings {
+            margin-top: 20px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            display: none;
+        }
+        /* Status Colors */
+        .status-off { color: #ef4444; }
+        .status-on { color: #10b981; }
     </style>
 </head>
 <body>
 
-    <div class="message-box">
-        <h2 id="status">লোকেশন চেক করা হচ্ছে...</h2>
-        <p id="details">দয়া করে অপেক্ষা করুন।</p>
+    <div class="card">
+        <div id="icon" class="icon-circle">📍</div>
+        <h2 id="status">চেক করা হচ্ছে...</h2>
+        <p id="details">আপনার ডিভাইসের লোকেশন স্ট্যাটাস যাচাই করা হচ্ছে।</p>
+        <button id="retry-btn" class="btn-settings" onclick="location.reload()">আবার চেষ্টা করুন</button>
     </div>
 
     <script>
-        // পেজ লোড হওয়ার সাথে সাথে ফাংশনটি রান করবে
-        window.onload = function() {
-            requestLocation();
-        };
+        const statusText = document.getElementById('status');
+        const detailsText = document.getElementById('details');
+        const iconBox = document.getElementById('icon');
+        const retryBtn = document.getElementById('retry-btn');
 
-        function requestLocation() {
-            const status = document.getElementById('status');
-            const details = document.getElementById('details');
-
-            if ("geolocation" in navigator) {
-                // লোকেশন পারমিশন চাওয়া হচ্ছে
-                navigator.geolocation.getCurrentPosition(
-                    function(position) {
-                        // লোকেশন সফলভাবে পাওয়া গেছে
-                        status.innerText = "লোকেশন চালু আছে";
-                        status.style.color = "green";
-                        details.innerText = "ধন্যবাদ! আপনার লোকেশন সফলভাবে শনাক্ত করা হয়েছে।";
-                    },
-                    function(error) {
-                        // লোকেশন পেতে সমস্যা হলে
-                        status.style.color = "red";
-                        
-                        if (error.code === error.PERMISSION_DENIED) {
-                            // ইউজার যদি 'Block' বা 'Deny' করে
-                            status.innerText = "লোকেশন পারমিশন প্রয়োজন";
-                            alert("আপনি লোকেশন পারমিশন বন্ধ করে রেখেছেন। দয়া করে ব্রাউজার সেটিংস থেকে এটি Allow করুন।");
-                        } else if (error.code === error.POSITION_UNAVAILABLE || error.code === error.TIMEOUT) {
-                            // যদি পারমিশন দেওয়া থাকে কিন্তু ফোনের GPS বন্ধ থাকে
-                            status.innerText = "লোকেশন (GPS) বন্ধ";
-                            alert("আপনার ফোনের লোকেশন বা GPS সার্ভিসটি বন্ধ আছে। দয়া করে ফোন সেটিংস থেকে লোকেশন চালু করুন।");
-                        }
-                        details.innerText = "লোকেশন চালু না করলে এই পেজটি কাজ করবে না।";
-                    },
-                    {
-                        enableHighAccuracy: true, // নিখুঁত লোকেশন চেক করার জন্য
-                        timeout: 5000,
-                        maximumAge: 0
-                    }
-                );
-            } else {
-                status.innerText = "সমর্থিত নয়";
-                details.innerText = "আপনার ব্রাউজারটি লোকেশন সাপোর্ট করে না।";
+        function updateUI(state) {
+            if (state === 'searching') {
+                iconBox.innerHTML = "🔍";
+                iconBox.className = "icon-circle pulse";
+                iconBox.style.background = "#334155";
+            } else if (state === 'active') {
+                iconBox.innerHTML = "✅";
+                iconBox.className = "icon-circle";
+                iconBox.style.background = "#10b981";
+                statusText.innerText = "লোকেশন চালু আছে";
+                statusText.className = "status-on";
+                detailsText.innerText = "আপনার নোড এখন নেটওয়ার্কে যুক্ত হওয়ার জন্য প্রস্তুত।";
+                retryBtn.style.display = "none";
+            } else if (state === 'error') {
+                iconBox.innerHTML = "❌";
+                iconBox.className = "icon-circle";
+                iconBox.style.background = "#ef4444";
+                statusText.innerText = "লোকেশন বন্ধ";
+                statusText.className = "status-off";
+                retryBtn.style.display = "inline-block";
             }
         }
-    </script>
 
+        function checkLocationRealTime() {
+            updateUI('searching');
+
+            if (!navigator.geolocation) {
+                detailsText.innerText = "আপনার ব্রাউজারটি লোকেশন সাপোর্ট করে না।";
+                updateUI('error');
+                return;
+            }
+
+            // watchPosition ব্যবহার করলে ইউজার লোকেশন অন করার সাথে সাথে এটি ডিটেক্ট করবে
+            navigator.geolocation.watchPosition(
+                (position) => {
+                    // সাকসেস
+                    updateUI('active');
+                },
+                (error) => {
+                    // এরর বা জিপিএস বন্ধ
+                    updateUI('error');
+                    if (error.code === 1) {
+                        detailsText.innerText = "আপনি লোকেশন পারমিশন ব্লক করেছেন। ব্রাউজার সেটিংস থেকে এটি এলাও করুন।";
+                    } else {
+                        detailsText.innerText = "আপনার ফোনের GPS বা লোকেশন সার্ভিস বন্ধ। দয়া করে উপর থেকে স্লাইড করে লোকেশন অন করুন।";
+                    }
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        // শুরুতেই চেক করা
+        checkLocationRealTime();
+    </script>
 </body>
 </html>

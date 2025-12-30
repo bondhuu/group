@@ -2,32 +2,38 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>People Country Group</title>
+  <title>People Group</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h2 id="country">Loading...</h2>
+<div class="container">
 
-<div id="login">
-  <button id="genKey">Generate Secret Key</button>
-  <input id="keyInput" placeholder="Enter Secret Key">
-  <button id="loginBtn">Login</button>
-</div>
+  <h1 id="country">🌍 Connecting…</h1>
 
-<div id="app" style="display:none;">
-  <textarea id="postText" placeholder="Write something..."></textarea>
-  <button id="postBtn">Post</button>
+  <div id="login" class="card">
+    <button id="genKey">Generate Secret Key</button>
+    <input id="keyInput" placeholder="Enter Secret Key">
+    <button id="loginBtn">Enter Group</button>
+  </div>
 
-  <hr>
+  <div id="app" style="display:none;">
+    <div class="card">
+      <textarea id="postText" placeholder="Write something..."></textarea>
+      <button id="postBtn">Post</button>
+    </div>
 
-  <input id="pollQ" placeholder="Poll question">
-  <input id="pollA" placeholder="Option A">
-  <input id="pollB" placeholder="Option B">
-  <button id="pollBtn">Create Poll</button>
+    <div class="card">
+      <input id="pollQ" placeholder="Poll question">
+      <input id="pollA" placeholder="Option A">
+      <input id="pollB" placeholder="Option B">
+      <button id="pollBtn">Create Poll</button>
+    </div>
 
-  <hr>
-  <div id="feed"></div>
+    <div id="feed"></div>
+  </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>

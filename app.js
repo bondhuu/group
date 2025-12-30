@@ -1,14 +1,18 @@
 const client = new WebTorrent()
 let myKey = null
-let room = null
+let room = "Global"
 let dataStore = []
 
-// Country detect
-fetch("https://ipapi.co/json/")
-  .then(r => r.json())
-  .then(d => {
-    room = d.country_name
-    document.getElementById("country").innerText = "🌍 " + room
+// Country detect with fallback
+fetch("https://ipapi.co/country_name/")
+  .then(r => r.text())
+  .then(c => {
+    room = c || "Global"
+    country.innerText = "🌍 " + room
+  })
+  .catch(() => {
+    room = "Global"
+    country.innerText = "🌍 Global"
   })
 
 // Generate key
@@ -37,8 +41,6 @@ function joinRoom() {
     torrent.on('wire', wire => {
       wire.use({
         name: 'sync',
-        onHandshake () {},
-        onExtendedHandshake () {},
         onMessage (buf) {
           const msg = JSON.parse(buf.toString())
           receive(msg)
@@ -67,11 +69,11 @@ function receive(msg) {
 
 // Post
 postBtn.onclick = () => {
+  if (!postText.value) return
   const msg = {
     id: crypto.randomUUID(),
     type: "post",
-    text: postText.value,
-    owner: myKey
+    text: postText.value
   }
   receive(msg)
   broadcast(msg)
@@ -104,12 +106,9 @@ function render() {
     }
 
     if (m.type === "poll") {
-      d.innerHTML = `
-        <b>${m.q}</b><br>
-        <button>A (${m.votes.a})</button>
-        <button>B (${m.votes.b})</button>
-      `
+      d.innerHTML = `<b>${m.q}</b><br>A: ${m.votes.a} | B: ${m.votes.b}`
     }
+
     feed.appendChild(d)
   })
 }
@@ -123,4 +122,4 @@ function loadLocal() {
   const d = localStorage.getItem("data-" + myKey)
   if (d) dataStore = JSON.parse(d)
   render()
-    }
+}

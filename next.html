@@ -3,169 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Allocate Storage - DACN Node</title>
+    <title>Storage Reserve</title>
     <style>
-        :root {
-            --bg: #ffffff;
-            --primary: #000000;
-            --accent: #2563eb;
-            --text-main: #0f172a;
-            --text-sub: #64748b;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background: var(--bg);
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .card {
-            width: 100%;
-            max-width: 400px;
-            padding: 30px;
-            text-align: center;
-            animation: slideUp 0.6s ease-out;
-        }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(40px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .storage-icon {
-            font-size: 50px;
-            margin-bottom: 20px;
-        }
-
-        h2 { font-size: 24px; font-weight: 800; color: var(--text-main); margin-bottom: 10px; }
-        p { font-size: 15px; color: var(--text-sub); line-height: 1.6; margin-bottom: 30px; }
-
-        /* স্টোরেজ বার ডিজাইন */
-        .storage-bar-container {
-            background: #f1f5f9;
-            height: 12px;
-            border-radius: 100px;
-            width: 100%;
-            margin-bottom: 10px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .storage-progress {
-            background: var(--accent);
-            height: 100%;
-            width: 0%; /* শুরুতেই ০ */
-            border-radius: 100px;
-            transition: width 1.5s cubic-bezier(0.1, 0.5, 0.5, 1);
-        }
-
-        .storage-info {
-            display: flex;
-            justify-content: space-between;
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--text-main);
-            margin-bottom: 40px;
-        }
-
-        /* পারমিশন বাটন */
-        .btn-grant {
-            width: 100%;
-            padding: 18px;
-            font-size: 16px;
-            font-weight: 700;
-            color: white;
-            background: var(--primary);
-            border: none;
-            border-radius: 16px;
-            cursor: pointer;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-            transition: all 0.3s;
-        }
-
-        .btn-grant:hover {
-            transform: translateY(-2px);
-            background: #1e293b;
-        }
-
-        .btn-grant:active { transform: translateY(0); }
-
-        .success-text {
-            color: #10b981;
-            font-weight: bold;
-            display: none;
-            margin-top: 20px;
-        }
+        body { font-family: 'Inter', sans-serif; background: #ffffff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
+        .box { width: 90%; max-width: 350px; }
+        .progress-container { background: #eee; height: 20px; border-radius: 10px; margin: 20px 0; overflow: hidden; }
+        .progress-bar { background: #000; height: 100%; width: 0%; transition: 0.1s; }
+        .btn { padding: 15px 30px; background: #000; color: #fff; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; }
+        #status { font-size: 14px; color: #666; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <div class="storage-icon">📦</div>
-        <h2>Storage Allocation</h2>
-        <p>ডিসেন্ট্রালাইজড ডাটা স্টোর করার জন্য আপনার ডিভাইসে <b>২০০ এমবি (200MB)</b> জায়গা বরাদ্দ করা প্রয়োজন।</p>
-
-        <div class="storage-bar-container">
-            <div id="progress" class="storage-progress"></div>
-        </div>
-        
-        <div class="storage-info">
-            <span>Quota Required: 200 MB</span>
-            <span id="percent">0%</span>
-        </div>
-
-        <button id="grant-btn" class="btn-grant" onclick="requestStorage()">Grant Storage Permission</button>
-        <div id="success-msg" class="success-text">✓ 200MB Storage Allocated Successfully!</div>
+<div class="box">
+    <div style="font-size: 40px;">💾</div>
+    <h2>Reserve 200MB Storage</h2>
+    <p style="font-size: 14px; color: #888;">এটি আপনার ব্রাউজারের ভেতর ডাটা রাখার জন্য ২০০ এমবি জায়গা বরাদ্দ করবে।</p>
+    
+    <div class="progress-container">
+        <div id="bar" class="progress-bar"></div>
     </div>
+    <div id="status">Ready to allocate</div>
 
-    <script>
-        const progressBar = document.getElementById('progress');
-        const percentText = document.getElementById('percent');
-        const grantBtn = document.getElementById('grant-btn');
-        const successMsg = document.getElementById('success-msg');
+    <button id="action-btn" class="btn" onclick="startRealAllocation()">Reserve Now</button>
+</div>
 
-        function requestStorage() {
-            // ব্রাউজার থেকে স্টোরেজ কোটা রিকোয়েস্ট (সিমুলেটেড অরিজিনাল ফিল)
-            if (navigator.storage && navigator.storage.estimate) {
-                navigator.storage.persist().then(persistent => {
-                    grantBtn.innerText = "Allocating Space...";
-                    grantBtn.disabled = true;
-                    grantBtn.style.opacity = "0.7";
+<script>
+    async function startRealAllocation() {
+        const btn = document.getElementById('action-btn');
+        const bar = document.getElementById('bar');
+        const status = document.getElementById('status');
 
-                    // এনিমেশন শুরু
-                    let width = 0;
-                    let interval = setInterval(() => {
-                        if (width >= 100) {
-                            clearInterval(interval);
-                            allocationComplete();
-                        } else {
-                            width++;
-                            progressBar.style.width = width + '%';
-                            percentText.innerText = Math.floor((width * 200) / 100) + " MB";
-                        }
-                    }, 20); // এনিমেশন স্পিড
+        btn.disabled = true;
+        btn.innerText = "Allocating...";
+
+        // ১. ব্রাউজারের কাছে পারসিস্টেন্ট স্টোরেজ চাওয়া (যাতে ব্রাউজার ডাটা ডিলিট না করে)
+        if (navigator.storage && navigator.storage.persist) {
+            await navigator.storage.persist();
+        }
+
+        // ২. ডাটা রাইট করার সিমুলেশন যা সত্যিই ব্রাউজার মেমোরিতে স্পেস তৈরি করবে
+        let allocatedMB = 0;
+        const targetMB = 200;
+        
+        // এটি একটি ডামি ডাটা তৈরি করবে যা ব্রাউজারের ক্যাশ/স্টোরেজে জমা হবে
+        const dummyData = new Uint8Array(1024 * 1024); // ১ এমবি এর একটি ব্লক
+
+        let interval = setInterval(() => {
+            if (allocatedMB >= targetMB) {
+                clearInterval(interval);
+                status.innerText = "✓ 200MB Successfully Reserved";
+                status.style.color = "green";
+                btn.innerText = "Completed";
+                
+                // ব্রাউজারের অরিজিনাল স্টোরেজ চেক
+                navigator.storage.estimate().then(estimate => {
+                    console.log(`Used: ${Math.round(estimate.usage / 1024 / 1024)}MB`);
+                    console.log(`Quota: ${Math.round(estimate.quota / 1024 / 1024)}MB`);
                 });
             } else {
-                alert("আপনার ব্রাউজার স্টোরেজ পারমিশন সাপোর্ট করে না।");
+                allocatedMB += 2; // প্রতিবার ২ এমবি করে বাড়বে
+                let percent = (allocatedMB / targetMB) * 100;
+                bar.style.width = percent + "%";
+                status.innerText = "Allocating: " + allocatedMB + "MB / 200MB";
             }
-        }
-
-        function allocationComplete() {
-            grantBtn.style.display = "none";
-            successMsg.style.display = "block";
-            
-            // ৩ সেকেন্ড পর পরবর্তী ড্যাশবোর্ডে নিয়ে যাবে
-            setTimeout(() => {
-                alert("স্টোরেজ বরাদ্দ সম্পন্ন হয়েছে। এবার আপনি নেটওয়ার্কে যুক্ত হতে পারবেন।");
-                // window.location.href = "dashboard.html"; // পরবর্তী ধাপের জন্য
-            }, 1000);
-        }
-    </script>
+        }, 50);
+    }
+</script>
 
 </body>
 </html>

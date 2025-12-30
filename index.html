@@ -3,119 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Location Node</title>
+    <title>Select Country</title>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            background: #0f172a;
-            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #ffffff; /* পুরো ব্যাকগ্রাউন্ড সাদা */
+            margin: 0;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            margin: 0;
+            color: #333;
         }
-        .card {
-            background: #1e293b;
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        .container {
             text-align: center;
-            width: 90%;
-            max-width: 400px;
-            border: 1px solid #334155;
+            width: 100%;
+            max-width: 350px;
+            padding: 20px;
         }
-        #country-display {
-            font-size: 40px;
+        h3 {
+            font-weight: 500;
+            margin-bottom: 30px;
+            color: #555;
+        }
+        /* সিলেক্ট বক্সের স্টাইল */
+        .select-box {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
             font-weight: bold;
-            color: #10b981;
-            margin-top: 20px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            display: none;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            background-color: #fafafa;
+            appearance: none; /* ডিফল্ট অ্যারো সরানোর জন্য */
+            outline: none;
+            cursor: pointer;
+            text-align: center;
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+        }
+        /* দেশের নাম সবুজে দেখানোর জন্য (ডিফল্ট বাংলাদেশ হলে) */
+        #country-select {
+            color: #10b981; /* সবুজ কালার */
+        }
+        /* কন্টিনিউ বাটন */
+        .btn-continue {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            background-color: #007bff; /* নীল বাটন */
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+            transition: background 0.3s;
+        }
+        .btn-continue:hover {
+            background-color: #0056b3;
         }
         .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3b82f6;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 10px;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        p { color: #94a3b8; }
-        .error-msg { color: #ef4444; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <div id="loading-ui">
-            <div class="loader"></div>
-            <p>আপনার লোকেশন শনাক্ত করা হচ্ছে...</p>
-        </div>
+    <div class="container">
+        <div id="loader" class="loader">আপনার দেশ শনাক্ত করা হচ্ছে...</div>
+        <h3>আপনার দেশ নিশ্চিত করুন</h3>
 
-        <div id="result-ui" style="display: none;">
-            <p>আপনার বর্তমান অবস্থান:</p>
-            <div id="country-display"></div>
-            <p style="margin-top: 15px; font-size: 12px;">নোড আইডি ভেরিফাইড</p>
-        </div>
+        <select id="country-select" class="select-box">
+            <option value="">দেশ লোড হচ্ছে...</option>
+            <option value="Bangladesh">Bangladesh</option>
+            <option value="India">India</option>
+            <option value="USA">USA</option>
+            <option value="UK">UK</option>
+            </select>
 
-        <div id="error-ui" class="error-msg" style="display: none;">
-            লোকেশন সার্ভিস চালু নেই! <br>
-            <small style="color: #94a3b8; font-weight: normal;">দয়া করে ফোন সেটিংস থেকে GPS চালু করুন।</small>
-        </div>
+        <button class="btn-continue" onclick="nextStep()">Continue</button>
     </div>
 
     <script>
-        const loadingUI = document.getElementById('loading-ui');
-        const resultUI = document.getElementById('result-ui');
-        const errorUI = document.getElementById('error-ui');
-        const countryDisplay = document.getElementById('country-display');
+        const countrySelect = document.getElementById('country-select');
+        const loader = document.getElementById('loader');
 
-        function fetchCountryName(lat, lng) {
-            // Reverse Geocoding API ব্যবহার করে দেশের নাম বের করা
-            const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`;
-
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    loadingUI.style.display = 'none';
-                    errorUI.style.display = 'none';
-                    resultUI.style.display = 'block';
-                    
-                    // দেশের নাম দেখানো
-                    countryDisplay.innerText = data.countryName;
-                    countryDisplay.style.display = 'block';
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert("দেশ শনাক্ত করতে সমস্যা হচ্ছে।");
-                });
-        }
-
-        function getLocation() {
+        // লোকেশন শনাক্ত করার ফাংশন
+        function detectCountry() {
             if (navigator.geolocation) {
-                navigator.geolocation.watchPosition(
-                    (position) => {
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
-                        fetchCountryName(lat, lng);
-                    },
-                    (error) => {
-                        loadingUI.style.display = 'none';
-                        errorUI.style.display = 'block';
-                    },
-                    { enableHighAccuracy: true }
-                );
-            } else {
-                alert("আপনার ব্রাউজার লোকেশন সাপোর্ট করে না।");
+                navigator.geolocation.getCurrentPosition((position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+
+                    // Reverse Geocoding API ব্যবহার করে দেশের নাম আনা
+                    fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`)
+                        .then(res => res.json())
+                        .then(data => {
+                            const detectedCountry = data.countryName;
+                            
+                            // সিলেক্ট বক্সে দেশ সেট করা
+                            countrySelect.value = detectedCountry;
+                            
+                            // যদি বাংলাদেশ হয় তবে সবুজ রঙ নিশ্চিত করা
+                            if(detectedCountry === "Bangladesh") {
+                                countrySelect.style.color = "#10b981"; // সবুজ
+                            } else {
+                                countrySelect.style.color = "#333"; // অন্য দেশের জন্য সাধারণ কালার
+                            }
+
+                            loader.innerText = "লোকেশন শনাক্ত হয়েছে!";
+                        })
+                        .catch(() => {
+                            loader.innerText = "লোকেশন শনাক্ত করা যায়নি।";
+                        });
+                }, () => {
+                    loader.innerText = "দয়া করে GPS চালু করুন।";
+                });
             }
         }
 
-        // পেজ লোড হলেই রান করবে
-        window.onload = getLocation;
+        function nextStep() {
+            const selectedCountry = countrySelect.value;
+            if(selectedCountry) {
+                alert(selectedCountry + " এর জন্য পরের ধাপে যাওয়া হচ্ছে...");
+                // এখানে আপনার পরবর্তী পেজের লিঙ্ক দিতে পারেন
+            } else {
+                alert("দয়া করে একটি দেশ সিলেক্ট করুন!");
+            }
+        }
+
+        // পেজ লোড হলেই ডিটেকশন শুরু হবে
+        window.onload = detectCountry;
     </script>
+
 </body>
 </html>

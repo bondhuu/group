@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Location Sync</title>
+    <title>Dynamic Location Node</title>
     <style>
-        * { box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
             background: #0f172a;
             color: white;
             display: flex;
@@ -15,127 +14,108 @@
             align-items: center;
             height: 100vh;
             margin: 0;
-            overflow: hidden;
         }
         .card {
             background: #1e293b;
-            padding: 30px;
+            padding: 40px;
             border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             text-align: center;
-            max-width: 350px;
             width: 90%;
+            max-width: 400px;
             border: 1px solid #334155;
         }
-        .icon-circle {
-            width: 80px;
-            height: 80px;
-            background: #334155;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0 auto 20px;
-            font-size: 35px;
-            transition: all 0.5s ease;
-        }
-        .pulse {
-            animation: pulse-animation 2s infinite;
-        }
-        @keyframes pulse-animation {
-            0% { box-shadow: 0 0 0 0px rgba(59, 130, 246, 0.5); }
-            100% { box-shadow: 0 0 0 20px rgba(59, 130, 246, 0); }
-        }
-        h2 { margin: 10px 0; font-size: 22px; }
-        p { color: #94a3b8; font-size: 14px; line-height: 1.5; }
-        .btn-settings {
-            margin-top: 20px;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 10px;
-            cursor: pointer;
+        #country-display {
+            font-size: 40px;
             font-weight: bold;
+            color: #10b981;
+            margin-top: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
             display: none;
         }
-        /* Status Colors */
-        .status-off { color: #ef4444; }
-        .status-on { color: #10b981; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        p { color: #94a3b8; }
+        .error-msg { color: #ef4444; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <div id="icon" class="icon-circle">📍</div>
-        <h2 id="status">চেক করা হচ্ছে...</h2>
-        <p id="details">আপনার ডিভাইসের লোকেশন স্ট্যাটাস যাচাই করা হচ্ছে।</p>
-        <button id="retry-btn" class="btn-settings" onclick="location.reload()">আবার চেষ্টা করুন</button>
+        <div id="loading-ui">
+            <div class="loader"></div>
+            <p>আপনার লোকেশন শনাক্ত করা হচ্ছে...</p>
+        </div>
+
+        <div id="result-ui" style="display: none;">
+            <p>আপনার বর্তমান অবস্থান:</p>
+            <div id="country-display"></div>
+            <p style="margin-top: 15px; font-size: 12px;">নোড আইডি ভেরিফাইড</p>
+        </div>
+
+        <div id="error-ui" class="error-msg" style="display: none;">
+            লোকেশন সার্ভিস চালু নেই! <br>
+            <small style="color: #94a3b8; font-weight: normal;">দয়া করে ফোন সেটিংস থেকে GPS চালু করুন।</small>
+        </div>
     </div>
 
     <script>
-        const statusText = document.getElementById('status');
-        const detailsText = document.getElementById('details');
-        const iconBox = document.getElementById('icon');
-        const retryBtn = document.getElementById('retry-btn');
+        const loadingUI = document.getElementById('loading-ui');
+        const resultUI = document.getElementById('result-ui');
+        const errorUI = document.getElementById('error-ui');
+        const countryDisplay = document.getElementById('country-display');
 
-        function updateUI(state) {
-            if (state === 'searching') {
-                iconBox.innerHTML = "🔍";
-                iconBox.className = "icon-circle pulse";
-                iconBox.style.background = "#334155";
-            } else if (state === 'active') {
-                iconBox.innerHTML = "✅";
-                iconBox.className = "icon-circle";
-                iconBox.style.background = "#10b981";
-                statusText.innerText = "লোকেশন চালু আছে";
-                statusText.className = "status-on";
-                detailsText.innerText = "আপনার নোড এখন নেটওয়ার্কে যুক্ত হওয়ার জন্য প্রস্তুত।";
-                retryBtn.style.display = "none";
-            } else if (state === 'error') {
-                iconBox.innerHTML = "❌";
-                iconBox.className = "icon-circle";
-                iconBox.style.background = "#ef4444";
-                statusText.innerText = "লোকেশন বন্ধ";
-                statusText.className = "status-off";
-                retryBtn.style.display = "inline-block";
+        function fetchCountryName(lat, lng) {
+            // Reverse Geocoding API ব্যবহার করে দেশের নাম বের করা
+            const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    loadingUI.style.display = 'none';
+                    errorUI.style.display = 'none';
+                    resultUI.style.display = 'block';
+                    
+                    // দেশের নাম দেখানো
+                    countryDisplay.innerText = data.countryName;
+                    countryDisplay.style.display = 'block';
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("দেশ শনাক্ত করতে সমস্যা হচ্ছে।");
+                });
+        }
+
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        fetchCountryName(lat, lng);
+                    },
+                    (error) => {
+                        loadingUI.style.display = 'none';
+                        errorUI.style.display = 'block';
+                    },
+                    { enableHighAccuracy: true }
+                );
+            } else {
+                alert("আপনার ব্রাউজার লোকেশন সাপোর্ট করে না।");
             }
         }
 
-        function checkLocationRealTime() {
-            updateUI('searching');
-
-            if (!navigator.geolocation) {
-                detailsText.innerText = "আপনার ব্রাউজারটি লোকেশন সাপোর্ট করে না।";
-                updateUI('error');
-                return;
-            }
-
-            // watchPosition ব্যবহার করলে ইউজার লোকেশন অন করার সাথে সাথে এটি ডিটেক্ট করবে
-            navigator.geolocation.watchPosition(
-                (position) => {
-                    // সাকসেস
-                    updateUI('active');
-                },
-                (error) => {
-                    // এরর বা জিপিএস বন্ধ
-                    updateUI('error');
-                    if (error.code === 1) {
-                        detailsText.innerText = "আপনি লোকেশন পারমিশন ব্লক করেছেন। ব্রাউজার সেটিংস থেকে এটি এলাও করুন।";
-                    } else {
-                        detailsText.innerText = "আপনার ফোনের GPS বা লোকেশন সার্ভিস বন্ধ। দয়া করে উপর থেকে স্লাইড করে লোকেশন অন করুন।";
-                    }
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 5000,
-                    maximumAge: 0
-                }
-            );
-        }
-
-        // শুরুতেই চেক করা
-        checkLocationRealTime();
+        // পেজ লোড হলেই রান করবে
+        window.onload = getLocation;
     </script>
 </body>
 </html>

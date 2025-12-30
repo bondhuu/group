@@ -26,9 +26,17 @@
   <h2>Welcome to the Decentralized Group System</h2>
   <p id="congrats" style="display:none;">Congratulations! Continue to set your username.</p>
   <button id="continueBtn">Continue</button>
-  <div id="usernameDiv" style="display:none;">
+
+  <div id="firstTimeDiv" style="display:none;">
     <input type="text" id="usernameInput" placeholder="Enter Username">
-    <button id="loginBtn">Login</button>
+    <p>Your Private Key (save this): <span id="privateKeyDisplay" style="font-weight:bold"></span></p>
+    <button id="firstLoginBtn">Login</button>
+  </div>
+
+  <div id="returningDiv" style="display:none; margin-top:10px;">
+    <input type="text" id="returnUsername" placeholder="Enter Username">
+    <input type="text" id="returnPrivateKey" placeholder="Enter Private Key">
+    <button id="returnLoginBtn">Login</button>
   </div>
 </div>
 
@@ -68,7 +76,6 @@
 let localUser = null;
 let localPosts = [];
 let networkPeers = []; // simulation of other peers
-
 const MAX_COPIES = 30;
 
 // HTML Elements
@@ -85,45 +92,80 @@ const tagFilter = document.getElementById('tagFilter');
 const deleteUserBtn = document.getElementById('deleteUserBtn');
 
 // ----------------------------
-// Login / User Setup
+// Login Elements
 // ----------------------------
 const congratsMsg = document.getElementById('congrats');
 const continueBtn = document.getElementById('continueBtn');
-const usernameDiv = document.getElementById('usernameDiv');
+const firstTimeDiv = document.getElementById('firstTimeDiv');
 const usernameInput = document.getElementById('usernameInput');
-const loginBtn = document.getElementById('loginBtn');
+const privateKeyDisplay = document.getElementById('privateKeyDisplay');
+const firstLoginBtn = document.getElementById('firstLoginBtn');
+const returningDiv = document.getElementById('returningDiv');
+const returnUsername = document.getElementById('returnUsername');
+const returnPrivateKey = document.getElementById('returnPrivateKey');
+const returnLoginBtn = document.getElementById('returnLoginBtn');
 
+// ----------------------------
+// First Step: Continue
 continueBtn.addEventListener('click', ()=>{
     congratsMsg.style.display = "block";
-    usernameDiv.style.display = "block";
+    firstTimeDiv.style.display = "block";
+    returningDiv.style.display = "block";
+    continueBtn.style.display = "none";
 });
 
-loginBtn.addEventListener('click', ()=>{
+// ----------------------------
+// First-time Login
+firstLoginBtn.addEventListener('click', ()=>{
     const username = usernameInput.value.trim();
     if(!username) return alert("Enter a username");
-    // Generate private key
     const privateKey = crypto.randomUUID();
+    privateKeyDisplay.innerText = privateKey;
     const peerId = crypto.randomUUID();
     localUser = {username, privateKey, peerId, country: detectCountry()};
     loginDiv.style.display = "none";
     mainAppDiv.style.display = "block";
     statusEl.innerText = `Connected: ${localUser.country}`;
-    // Load saved posts if any
     localPosts = JSON.parse(localStorage.getItem("posts_"+localUser.username) || "[]");
     renderFeed();
 });
 
 // ----------------------------
+// Returning User Login
+returnLoginBtn.addEventListener('click', ()=>{
+    const username = returnUsername.value.trim();
+    const key = returnPrivateKey.value.trim();
+    if(!username || !key) return alert("Enter Username and Private Key");
+    const saved = localStorage.getItem("posts_"+username);
+    if(saved !== null){
+        // verify key from localStorage simulation
+        // for simulation, store key in a separate object
+        const storedKey = localStorage.getItem("key_"+username);
+        if(storedKey !== key) return alert("Private Key mismatch!");
+        const peerId = crypto.randomUUID();
+        localUser = {username, privateKey:key, peerId, country: detectCountry()};
+        localPosts = JSON.parse(saved || "[]");
+        loginDiv.style.display = "none";
+        mainAppDiv.style.display = "block";
+        statusEl.innerText = `Connected: ${localUser.country}`;
+        renderFeed();
+    } else {
+        alert("Username not found. You may need to login as new user.");
+    }
+});
+
+// ----------------------------
 // Detect Country (simplified)
 function detectCountry(){
-    return "Bangladesh"; // placeholder, could use IP geolocation API
+    return "Bangladesh"; // placeholder
 }
 
 // ----------------------------
-// Save Posts to LocalStorage
+// Save Posts & Key to LocalStorage
 function savePosts(){
     if(!localUser) return;
     localStorage.setItem("posts_"+localUser.username, JSON.stringify(localPosts));
+    localStorage.setItem("key_"+localUser.username, localUser.privateKey);
 }
 
 // ----------------------------
@@ -134,12 +176,10 @@ function renderFeed(){
     let merged = [...localPosts];
     networkPeers.forEach(peer=>merged.push(...peer.localPosts));
 
-    // Remove duplicates
     const map = {};
     merged.forEach(p => { if(!p.deleted) map[p.id] = p });
     merged = Object.values(map);
 
-    // Filter
     if(selectedTag){
         merged = merged.filter(p => `${p.category}-${p.district}-${p.thana}`===selectedTag);
     }
@@ -240,7 +280,6 @@ postBtn.addEventListener('click', ()=>{
     };
     localPosts.push(post);
 
-    // Broadcast fractional copy to network simulation
     networkPeers.forEach(peer=>{
         const fraction = Math.ceil(post.copies / (networkPeers.length+1));
         const copyPost = {...post, copies:fraction};
@@ -258,20 +297,18 @@ tagFilter.addEventListener('change', renderFeed);
 // ----------------------------
 // Delete User & All Data
 deleteUserBtn.addEventListener('click', ()=>{
-    if(!confirm("Are you sure you want to DELETE your account and all data? This cannot be undone!")) return;
-    // Remove user posts locally
+    if(!confirm("Are you sure you want to DELETE your account and all data?")) return;
     localPosts.forEach(p=>p.deleted=true);
     savePosts();
-    // Notify network peers (simulation)
     networkPeers.forEach(peer=>{
         peer.localPosts.forEach(p=>{
             if(p.peerId===localUser.peerId) p.deleted=true;
         });
     });
-    alert("Your account and all data have been deleted. Reload to start fresh.");
-    // Clear localStorage
     localStorage.removeItem("posts_"+localUser.username);
+    localStorage.removeItem("key_"+localUser.username);
     localUser = null;
+    alert("All your data has been deleted. Reload to start fresh.");
     location.reload();
 });
 

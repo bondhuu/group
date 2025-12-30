@@ -3,112 +3,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DACN - Smart Node</title>
+    <title>DACN - Decentralized Smart Node</title>
     <style>
         :root { --h: #075e54; --bg: #efe7dd; --me: #d9fdd3; }
-        body { margin: 0; font-family: sans-serif; background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .header { background: var(--h); color: #fff; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; height: 60px; box-sizing: border-box; }
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        /* Header Aligned */
+        .header { background: var(--h); color: #fff; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; height: 60px; box-sizing: border-box; z-index: 10; }
         .side-box { width: 100px; font-size: 10px; line-height: 1.2; }
-        .country-title { flex: 1; text-align: center; font-weight: bold; font-size: 18px; }
+        .country-title { flex: 1; text-align: center; font-weight: bold; font-size: 18px; white-space: nowrap; }
         .key-btn { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; }
-        .input-area { background: #f0f2f5; padding: 10px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #ddd; }
-        input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #ddd; outline: none; }
+        
+        /* Input at Top */
+        .input-area { background: #f0f2f5; padding: 10px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #ddd; z-index: 9; }
+        input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #ddd; outline: none; font-size: 15px; }
         .send-btn { font-size: 24px; cursor: pointer; color: var(--h); border:none; background:none; }
+
+        /* Chat Window */
         #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; }
-        .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; font-size: 14.5px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); word-wrap: break-word; }
-        .msg-me { background: var(--me); align-self: flex-end; }
-        .msg-other { background: #fff; align-self: flex-start; }
-        .chat-img { width: 100%; max-width: 250px; border-radius: 6px; display: block; margin-top: 5px; }
+        .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; font-size: 14.5px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); word-wrap: break-word; position: relative; }
+        .msg-me { background: var(--me); align-self: flex-end; border-top-right-radius: 0; }
+        .msg-other { background: #fff; align-self: flex-start; border-top-left-radius: 0; }
+        
+        .chat-img { width: 100%; max-width: 250px; border-radius: 6px; cursor: pointer; display: block; margin-top: 5px; object-fit: cover; }
     </style>
 </head>
 <body>
+
     <div class="header">
-        <div class="side-box" id="storage-info">Initializing Node...</div>
-        <div class="country-title" id="c-name">Node</div>
-        <div class="side-box" style="text-align: right;"><button class="key-btn" onclick="copyKey()">🔑 KEY</button></div>
+        <div class="side-box" id="storage-info">Initializing...</div>
+        <div class="country-title" id="c-name">Bangladesh Node</div>
+        <div class="side-box" style="text-align: right;">
+            <button class="key-btn" onclick="copyKey()">🔑 COPY KEY</button>
+        </div>
     </div>
+
     <div class="input-area">
         <label style="cursor:pointer; font-size: 22px;">📷<input type="file" id="file-input" hidden accept="image/*" onchange="processImage(this)"></label>
         <input type="text" id="inp" placeholder="বার্তা লিখুন...">
         <button class="send-btn" onclick="send()">➤</button>
     </div>
+
     <div id="chat"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    
     <script>
+        // ১. সিকিউরিটি গার্ড: সেটআপ ছাড়া প্রবেশ নিষেধ
+        (function checkSetup() {
+            if (localStorage.getItem('setup_complete') !== 'true') {
+                window.location.href = "index.html";
+            }
+        })();
+
+        // ২. কনফিগারেশন
         const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
-        const mesh = gun.get('dacn_mesh_v2_storage');
-        const MY_KEY = localStorage.getItem('p_key') || "GUEST";
-        const STORAGE_LIMIT = 200 * 1024 * 1024; // 200MB in Bytes
+        const mesh = gun.get('dacn_mesh_v5_distributed'); // ইউনিক নেটওয়ার্ক আইডি
+        const MY_KEY = localStorage.getItem('p_key');
+        const STORAGE_LIMIT = 200 * 1024 * 1024; // 200MB limit
 
         let db;
-        const request = indexedDB.open("DACN_Smart_Node", 1);
+        const request = indexedDB.open("DACN_P2P_Node", 1);
+        
         request.onupgradeneeded = (e) => {
-            let db_init = e.target.result;
-            db_init.createObjectStore("messages", { keyPath: "id" });
+            e.target.result.createObjectStore("messages", { keyPath: "id" });
         };
+
         request.onsuccess = (e) => {
             db = e.target.result;
-            loadAndSync();
+            startNodeSync(); // নেটওয়ার্ক সিঙ্ক শুরু
         };
 
-        // ১. মেসেজ পাঠানো (Distributed Sharding)
-        async function send() {
-            const val = document.getElementById('inp').value.trim();
+        // ৩. মেসেজ পাঠানো (P2P Distribution)
+        function send() {
+            const inp = document.getElementById('inp');
+            const val = inp.value.trim();
             if(!val) return;
+
             const msgId = "MSG" + Date.now();
-            const data = { id: msgId, type: 'text', content: val, sender: MY_KEY, time: getTime(), timestamp: Date.now() };
-            
-            // নেটওয়ার্কে ছড়িয়ে দাও
+            const data = {
+                id: msgId,
+                type: 'text',
+                content: val,
+                sender: MY_KEY,
+                time: getTime(),
+                timestamp: Date.now()
+            };
+
+            // নেটওয়ার্কে ছড়িয়ে দেওয়া (অন্যান্য নোড এটি রিসিভ করবে)
             mesh.get(msgId).put(data);
-            saveToNode(data);
-            document.getElementById('inp').value = "";
+            saveToLocalNode(data);
+            inp.value = "";
         }
 
-        // ২. লোকাল নোডে সেভ করা এবং ২০০ এমবি চেক করা
-        async function saveToNode(data) {
-            const tx = db.transaction("messages", "readwrite");
-            const store = tx.objectStore("messages");
-            store.put(data);
-            renderMsg(data, true);
-            checkAndCleanupStorage();
-        }
-
-        // ৩. স্টোরেজ ম্যানেজমেন্ট (২০০ এমবি ফুল হলে পুরনো ডিলিট)
-        async function checkAndCleanupStorage() {
-            const estimate = await navigator.storage.estimate();
-            const used = estimate.usage;
-            const usedMB = (used / (1024 * 1024)).toFixed(1);
-            document.getElementById('storage-info').innerText = `Storage: ${usedMB}MB / 200MB`;
-
-            if (used > STORAGE_LIMIT) {
-                // পুরনো ডাটা খুঁজে বের করো (Timestamp অনুযায়ী)
-                const tx = db.transaction("messages", "readwrite");
-                const store = tx.objectStore("messages");
-                const index = store.openCursor();
-                
-                index.onsuccess = (e) => {
-                    const cursor = e.target.result;
-                    if (cursor) {
-                        // পুরনো একটি ফাইল মুছে দাও
-                        store.delete(cursor.key);
-                        console.log("Storage Full: Old data purged from local node. Data remains in network.");
-                        // একবার মুছেই অপারেশন শেষ, আবার প্রয়োজন হলে পরের বার মুছবে
-                    }
+        // ৪. ইমেজ প্রসেসিং ও ডিস্ট্রিবিউশন
+        function processImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const maxWidth = 800; // স্ট্যান্ডার্ড সাইজ
+                        const scale = maxWidth / img.width;
+                        canvas.width = maxWidth;
+                        canvas.height = img.height * scale;
+                        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+                        const msgId = "IMG" + Date.now();
+                        const data = {
+                            id: msgId,
+                            type: 'image',
+                            content: compressedBase64,
+                            sender: MY_KEY,
+                            time: getTime(),
+                            timestamp: Date.now()
+                        };
+                        mesh.get(msgId).put(data);
+                        saveToLocalNode(data);
+                    };
                 };
+                reader.readAsDataURL(input.files[0]);
             }
         }
 
-        // ৪. নেটওয়ার্ক সিঙ্ক্রোনাইজেশন
-        function loadAndSync() {
-            // নেটওয়ার্ক থেকে নতুন ডাটা শোনো
+        // ৫. লোকাল নোডে সেভ এবং ২০০ এমবি চেক
+        function saveToLocalNode(data) {
+            if(!db) return;
+            const tx = db.transaction("messages", "readwrite");
+            tx.objectStore("messages").put(data);
+            renderMsg(data, true);
+            updateStorageMonitor();
+        }
+
+        // ৬. নেটওয়ার্ক থেকে ডাটা সিঙ্ক (অন্যান্য নোড থেকে আসা তথ্য)
+        function startNodeSync() {
             mesh.map().on((data, id) => {
-                if(!data) return;
+                if(!data || !db) return;
+                
                 const tx = db.transaction("messages", "readonly");
                 tx.objectStore("messages").get(id).onsuccess = (e) => {
                     if(!e.target.result) {
-                        // যদি আমার ফোনে এই ডাটা না থাকে (অর্থাৎ আমি নতুন একটিভ হয়েছি)
-                        saveToNode(data);
+                        // এই ডাটা আমার ফোনে নেই, তাই আমি এর একটি কপি সেভ করে নিলাম (Node Support)
+                        const saveTx = db.transaction("messages", "readwrite");
+                        saveTx.objectStore("messages").put(data);
+                        renderMsg(data, true);
+                        updateStorageMonitor();
                     } else if(!document.getElementById('msg-'+id)) {
                         renderMsg(data, false);
                     }
@@ -116,32 +158,51 @@
             });
         }
 
+        // ৭. স্মার্ট স্টোরেজ ক্লিনআপ (পুরনো ডিলিট করা)
+        async function updateStorageMonitor() {
+            if (navigator.storage && navigator.storage.estimate) {
+                const estimate = await navigator.storage.estimate();
+                const usedBytes = estimate.usage;
+                const usedMB = (usedBytes / (1024 * 1024)).toFixed(1);
+                document.getElementById('storage-info').innerText = `Used: ${usedMB}MB / 200MB`;
+
+                if (usedBytes > STORAGE_LIMIT) {
+                    const tx = db.transaction("messages", "readwrite");
+                    const store = tx.objectStore("messages");
+                    store.openCursor().onsuccess = (e) => {
+                        const cursor = e.target.result;
+                        if (cursor) {
+                            // পুরনো ডাটা লোকাল থেকে ডিলিট কিন্তু এটি নেটওয়ার্কের অন্য নোডে থাকবে
+                            store.delete(cursor.key);
+                            console.log("Local Node Full: Purging old data to make room.");
+                        }
+                    };
+                }
+            }
+        }
+
+        // হেল্পার ফাংশন
         function renderMsg(data, isNew) {
             if(document.getElementById('msg-' + data.id)) return;
             const d = document.createElement('div');
             d.id = 'msg-' + data.id;
             d.className = 'msg ' + (data.sender === MY_KEY ? 'msg-me' : 'msg-other');
-            d.innerHTML = data.type === 'text' ? data.content : `<img src="${data.content}" class="chat-img">`;
+            d.innerHTML = data.type === 'text' ? data.content : `<img src="${data.content}" class="chat-img" onclick="downloadImg('${data.content}')">`;
             d.innerHTML += `<div style="font-size:9px; text-align:right; margin-top:4px; opacity:0.6;">${data.time}</div>`;
             const chatBox = document.getElementById('chat');
             if(isNew) chatBox.prepend(d); else chatBox.appendChild(d);
         }
 
-        function processImage(input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const msgId = "IMG" + Date.now();
-                    const data = { id: msgId, type: 'image', content: e.target.result, sender: MY_KEY, time: getTime(), timestamp: Date.now() };
-                    mesh.get(msgId).put(data);
-                    saveToNode(data);
-                };
-                reader.readAsDataURL(input.files[0]);
-            }
+        function downloadImg(base64) {
+            const link = document.createElement('a');
+            link.href = base64;
+            link.download = "DACN_FILE_" + Date.now() + ".jpg";
+            link.click();
         }
 
         function getTime() { return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
         function copyKey() { navigator.clipboard.writeText(MY_KEY); alert("প্রাইভেট কি কপি হয়েছে!"); }
+        
         document.getElementById('c-name').innerText = localStorage.getItem('user_country') || "Bangladesh";
         document.getElementById('inp').addEventListener("keypress", (e) => { if(e.key === "Enter") send(); });
     </script>

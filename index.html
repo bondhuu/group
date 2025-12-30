@@ -3,134 +3,189 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Select Your Country</title>
+    <title>Select Community Location</title>
     <style>
+        :root {
+            --primary-bg: #ffffff;
+            --accent-green: #10b981;
+            --accent-orange: #f97316;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+        }
+
         body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background-color: #ffffff; /* পিওর সাদা ব্যাকগ্রাউন্ড */
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--primary-bg);
             margin: 0;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
+            -webkit-font-smoothing: antialiased;
         }
-        .wrapper {
-            text-align: center;
-            width: 90%;
-            max-width: 380px;
-        }
-        .label {
-            font-size: 14px;
-            color: #777;
-            margin-bottom: 10px;
-        }
-        /* স্টাইলিশ ড্রপডাউন */
-        .select-field {
+
+        .main-card {
             width: 100%;
-            padding: 16px;
+            max-width: 400px;
+            padding: 40px 24px;
+            text-align: center;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo-area {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 8px;
+            letter-spacing: -1px;
+        }
+
+        .sub-text {
+            font-size: 15px;
+            color: var(--text-sub);
+            margin-bottom: 40px;
+        }
+
+        /* ড্রপডাউন ডিজাইন */
+        .select-container {
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        .custom-select {
+            width: 100%;
+            padding: 18px 20px;
             font-size: 18px;
             font-weight: 600;
-            border: 2px solid #eeeeee;
-            border-radius: 15px;
-            background-color: #f9f9f9;
-            color: #10b981; /* বাংলাদেশের জন্য ডিফল্ট সবুজ */
+            color: var(--text-main);
+            background: #f8fafc;
+            border: 2px solid #f1f5f9;
+            border-radius: 16px;
+            appearance: none;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             outline: none;
-            cursor: pointer;
-            margin-bottom: 30px;
-            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
-        .select-field:focus {
-            border-color: #10b981;
+
+        .custom-select:focus {
+            border-color: #e2e8f0;
+            background: #ffffff;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         }
+
         /* কন্টিনিউ বাটন */
-        .btn-next {
+        .continue-btn {
             width: 100%;
-            padding: 16px;
+            padding: 18px;
             font-size: 16px;
-            font-weight: bold;
-            color: white;
-            background-color: #000000; /* প্রফেশনাল কালো বাটন */
+            font-weight: 700;
+            color: #ffffff;
+            background: #000000;
             border: none;
-            border-radius: 15px;
+            border-radius: 16px;
             cursor: pointer;
-            transition: opacity 0.3s;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
         }
-        .btn-next:active {
-            opacity: 0.8;
+
+        .continue-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .continue-btn:active {
+            transform: translateY(0);
+        }
+
+        /* অটো-ডিটেকশন লোডার */
+        .detecting-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #f1f5f9;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-sub);
+            margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
 
-    <div class="wrapper">
-        <div class="label" id="status-msg">দেশ শনাক্ত করা হচ্ছে...</div>
-        
-        <select id="country-dropdown" class="select-field">
-            <option value="Bangladesh">Bangladesh</option>
-            <option value="India">India</option>
-            <option value="USA">USA</option>
-            <option value="UK">UK</option>
-            <option value="Canada">Canada</option>
-            <option value="Saudi Arabia">Saudi Arabia</option>
-            <option value="Pakistan">Pakistan</option>
-        </select>
+    <div class="main-card">
+        <div id="status-badge" class="detecting-badge">Detecting your location...</div>
+        <div class="logo-area">Welcome</div>
+        <div class="sub-text">নিচের তালিকা থেকে আপনার দেশ নিশ্চিত করুন।</div>
 
-        <button class="btn-next" onclick="goToNextPage()">Continue</button>
+        <div class="select-container">
+            <select id="country-dropdown" class="custom-select">
+                <option value="Bangladesh">Bangladesh</option>
+                <option value="India">India</option>
+                <option value="USA">United States</option>
+                <option value="UK">United Kingdom</option>
+                <option value="Saudi Arabia">Saudi Arabia</option>
+                <option value="Canada">Canada</option>
+                <option value="Other">Other Country</option>
+            </select>
+        </div>
+
+        <button class="continue-btn" onclick="nextPage()">Continue</button>
     </div>
 
     <script>
         const dropdown = document.getElementById('country-dropdown');
-        const statusMsg = document.getElementById('status-msg');
+        const badge = document.getElementById('status-badge');
 
-        // অরিজিনাল লোকেশন ডিটেকশন
+        // অরিজিনাল জিওলোকেশন ডিটেকশন
         window.onload = function() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(position => {
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
 
-                    // রিয়েল টাইম রিভার্স জিওকোডিং API
                     fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`)
                     .then(res => res.json())
                     .then(data => {
                         const country = data.countryName;
-                        
-                        // ড্রপডাউনে অরিজিনাল দেশ সেট করা
                         if(country) {
                             dropdown.value = country;
-                            statusMsg.innerText = "আপনার দেশ শনাক্ত হয়েছে";
-                            
-                            // রঙ পরিবর্তন লজিক
-                            updateColor(country);
+                            badge.innerText = "Location Verified";
+                            badge.style.background = "#dcfce7";
+                            badge.style.color = "#10b981";
+                            updateStyle(country);
                         }
                     })
                     .catch(() => {
-                        statusMsg.innerText = "অটো-ডিটেক্ট ব্যর্থ, ম্যানুয়ালি সিলেক্ট করুন";
+                        badge.innerText = "Set location manually";
                     });
                 }, () => {
-                    statusMsg.innerText = "লোকেশন পারমিশন না দিলে অটো-ডিটেক্ট হবে না";
+                    badge.innerText = "Permission required";
                 });
             }
         };
 
-        // ড্রপডাউন পরিবর্তন করলে রঙ বদলানোর জন্য
         dropdown.onchange = function() {
-            updateColor(this.value);
+            updateStyle(this.value);
         };
 
-        function updateColor(val) {
+        function updateStyle(val) {
             if(val === "Bangladesh") {
-                dropdown.style.color = "#10b981"; // সবুজ
+                dropdown.style.color = "#10b981"; // প্রফেশনাল সবুজ
             } else if(val === "India") {
-                dropdown.style.color = "#ff9933"; // গেরুয়া/কমলা
+                dropdown.style.color = "#f97316"; // প্রফেশনাল অরেঞ্জ
             } else {
-                dropdown.style.color = "#333333"; // ডিফল্ট কালো
+                dropdown.style.color = "#1e293b"; // ডিফল্ট নেভি ব্ল্যাক
             }
         }
 
-        // পরবর্তী ব্ল্যাংক পেজে যাওয়ার জন্য
-        function goToNextPage() {
-            // এটি আপনাকে next.html পেজে নিয়ে যাবে
+        function nextPage() {
+            // পরবর্তী ব্ল্যাংক পেজে যাওয়ার লিঙ্ক
             window.location.href = "next.html";
         }
     </script>

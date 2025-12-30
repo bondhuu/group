@@ -3,216 +3,280 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Decentralized Group Feed</title>
+<title>Decentralized Group System</title>
 <style>
   body { font-family:sans-serif; background:#f5f5f5; margin:0; padding:20px; }
+  #login, #mainApp { max-width:600px; margin:auto; }
   #status { text-align:center; margin-bottom:10px; }
   #newPost { display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap; }
   #newPost input, #newPost select, #newPost button { padding:10px; font-size:14px; }
-  #feed { max-width:600px; margin:auto; }
+  #feed { margin-top:20px; }
   .post { background:#fff; padding:10px; margin:10px 0; border-radius:5px; box-shadow:0 0 5px rgba(0,0,0,0.1);}
   .tags { font-size:12px; color:#555; margin-bottom:5px; cursor:pointer; }
   .votes { margin-top:5px; }
   .votes button { margin-right:5px; }
-  #filter { margin-bottom:15px; }
+  .comments { margin-top:10px; padding-left:10px; border-left:2px solid #ccc; }
+  .comment { margin-bottom:5px; font-size:13px; }
+  .deleteUserBtn { margin-top:10px; background:red;color:white;border:none;padding:8px;border-radius:5px;cursor:pointer; }
 </style>
 </head>
 <body>
 
-<div id="status">Connecting...</div>
-
-<div id="newPost">
-  <input type="text" id="postInput" placeholder="Write something...">
-  <select id="categorySelect">
-    <option value="">Category</option>
-    <option value="Education">Education</option>
-    <option value="Health">Health</option>
-    <option value="Politics">Politics</option>
-    <option value="Local News">Local News</option>
-  </select>
-  <input type="text" id="districtInput" placeholder="District">
-  <input type="text" id="thanaInput" placeholder="Thana">
-  <button id="postBtn">Post</button>
+<div id="login">
+  <h2>Welcome to the Decentralized Group System</h2>
+  <p id="congrats" style="display:none;">Congratulations! Continue to set your username.</p>
+  <button id="continueBtn">Continue</button>
+  <div id="usernameDiv" style="display:none;">
+    <input type="text" id="usernameInput" placeholder="Enter Username">
+    <button id="loginBtn">Login</button>
+  </div>
 </div>
 
-<div id="filter">
-  <label>Filter by Tag: </label>
-  <select id="tagFilter">
-    <option value="">Show All</option>
-  </select>
-</div>
+<div id="mainApp" style="display:none;">
+  <div id="status"></div>
 
-<div id="feed"></div>
+  <div id="newPost">
+    <input type="text" id="postInput" placeholder="Write something...">
+    <select id="categorySelect">
+      <option value="">Category</option>
+      <option value="Education">Education</option>
+      <option value="Health">Health</option>
+      <option value="Politics">Politics</option>
+      <option value="Local News">Local News</option>
+    </select>
+    <input type="text" id="districtInput" placeholder="District">
+    <input type="text" id="thanaInput" placeholder="Thana">
+    <button id="postBtn">Post</button>
+  </div>
+
+  <div id="filter">
+    <label>Filter by Tag: </label>
+    <select id="tagFilter">
+      <option value="">Show All</option>
+    </select>
+  </div>
+
+  <button class="deleteUserBtn" id="deleteUserBtn">Delete My Account & All Data</button>
+
+  <div id="feed"></div>
+</div>
 
 <script>
 // ----------------------------
-// Minimal P2P + Distributed Fraction Copy + Voting + Tags
+// Core Variables
 // ----------------------------
-
+let localUser = null;
 let localPosts = [];
-let networkPeers = [];
+let networkPeers = []; // simulation of other peers
+
 const MAX_COPIES = 30;
-const peerId = crypto.randomUUID();
-console.log("Peer ID:", peerId);
 
-let country = "Bangladesh";
-document.getElementById('status').innerText = `Connected: ${country}`;
-
-const feedEl = document.getElementById('feed');
+// HTML Elements
+const loginDiv = document.getElementById('login');
+const mainAppDiv = document.getElementById('mainApp');
+const statusEl = document.getElementById('status');
 const postInput = document.getElementById('postInput');
 const postBtn = document.getElementById('postBtn');
 const categorySelect = document.getElementById('categorySelect');
 const districtInput = document.getElementById('districtInput');
 const thanaInput = document.getElementById('thanaInput');
+const feedEl = document.getElementById('feed');
 const tagFilter = document.getElementById('tagFilter');
+const deleteUserBtn = document.getElementById('deleteUserBtn');
 
 // ----------------------------
-// Helper: Render Feed
+// Login / User Setup
 // ----------------------------
-function renderFeed(){
-  let selectedTag = tagFilter.value || null;
-  
-  let merged = [...localPosts];
-  networkPeers.forEach(peer=>merged.push(...peer.localPosts));
-  
-  // Remove duplicates by ID
-  const map = {};
-  merged.forEach(p => map[p.id] = p);
-  merged = Object.values(map);
-  
-  // Filter by selected tag
-  if(selectedTag){
-    merged = merged.filter(p => `${p.category}-${p.district}-${p.thana}`===selectedTag);
-  }
-  
-  merged.sort((a,b)=>b.timestamp - a.timestamp);
-  
-  // Render
-  feedEl.innerHTML = "";
-  merged.forEach(p=>{
-    const div = document.createElement('div');
-    div.className='post';
-    div.innerHTML = `
-      <div class="tags">${p.category} | ${p.district} | ${p.thana}</div>
-      <div><strong>${p.author.substring(0,6)}</strong>: ${p.content}</div>
-      <div class="votes">
-        <button onclick="vote('${p.id}','up')">👍 ${p.votes.up}</button>
-        <button onclick="vote('${p.id}','down')">👎 ${p.votes.down}</button>
-      </div>
-      <small>${new Date(p.timestamp).toLocaleString()}</small>
-    `;
-    feedEl.appendChild(div);
-  });
+const congratsMsg = document.getElementById('congrats');
+const continueBtn = document.getElementById('continueBtn');
+const usernameDiv = document.getElementById('usernameDiv');
+const usernameInput = document.getElementById('usernameInput');
+const loginBtn = document.getElementById('loginBtn');
 
-  updateTagFilterOptions();
+continueBtn.addEventListener('click', ()=>{
+    congratsMsg.style.display = "block";
+    usernameDiv.style.display = "block";
+});
+
+loginBtn.addEventListener('click', ()=>{
+    const username = usernameInput.value.trim();
+    if(!username) return alert("Enter a username");
+    // Generate private key
+    const privateKey = crypto.randomUUID();
+    const peerId = crypto.randomUUID();
+    localUser = {username, privateKey, peerId, country: detectCountry()};
+    loginDiv.style.display = "none";
+    mainAppDiv.style.display = "block";
+    statusEl.innerText = `Connected: ${localUser.country}`;
+    // Load saved posts if any
+    localPosts = JSON.parse(localStorage.getItem("posts_"+localUser.username) || "[]");
+    renderFeed();
+});
+
+// ----------------------------
+// Detect Country (simplified)
+function detectCountry(){
+    return "Bangladesh"; // placeholder, could use IP geolocation API
 }
 
 // ----------------------------
-// Update Tag Filter Dropdown
+// Save Posts to LocalStorage
+function savePosts(){
+    if(!localUser) return;
+    localStorage.setItem("posts_"+localUser.username, JSON.stringify(localPosts));
+}
+
 // ----------------------------
+// Render Feed
+function renderFeed(){
+    let selectedTag = tagFilter.value || null;
+
+    let merged = [...localPosts];
+    networkPeers.forEach(peer=>merged.push(...peer.localPosts));
+
+    // Remove duplicates
+    const map = {};
+    merged.forEach(p => { if(!p.deleted) map[p.id] = p });
+    merged = Object.values(map);
+
+    // Filter
+    if(selectedTag){
+        merged = merged.filter(p => `${p.category}-${p.district}-${p.thana}`===selectedTag);
+    }
+
+    merged.sort((a,b)=>b.timestamp - a.timestamp);
+
+    feedEl.innerHTML = "";
+    merged.forEach(p=>{
+        const div = document.createElement('div');
+        div.className='post';
+        div.innerHTML = `
+            <div class="tags">${p.category} | ${p.district} | ${p.thana}</div>
+            <div><strong>${p.username}</strong>: ${p.content}</div>
+            <div class="votes">
+                <button onclick="vote('${p.id}','up')">👍 ${p.votes.up}</button>
+                <button onclick="vote('${p.id}','down')">👎 ${p.votes.down}</button>
+            </div>
+            <div class="comments">
+                ${p.comments.map(c=>`<div class="comment"><strong>${c.username.substring(0,6)}</strong>: ${c.content}</div>`).join('')}
+                <input type="text" placeholder="Add comment" onkeydown="if(event.key==='Enter'){addComment('${p.id}',this.value);this.value='';}">
+            </div>
+        `;
+        feedEl.appendChild(div);
+    });
+
+    updateTagFilterOptions();
+}
+
+// ----------------------------
+// Tag Filter Options
 function updateTagFilterOptions(){
-  let allTags = new Set();
-  localPosts.forEach(p=>{
-    allTags.add(`${p.category}-${p.district}-${p.thana}`);
-  });
-  networkPeers.forEach(peer=>peer.localPosts.forEach(p=>{
-    allTags.add(`${p.category}-${p.district}-${p.thana}`);
-  }));
-  
-  tagFilter.innerHTML = '<option value="">Show All</option>';
-  allTags.forEach(tag=>{
-    let opt = document.createElement('option');
-    opt.value = tag;
-    opt.innerText = tag;
-    tagFilter.appendChild(opt);
-  });
+    let allTags = new Set();
+    localPosts.forEach(p=>allTags.add(`${p.category}-${p.district}-${p.thana}`));
+    networkPeers.forEach(peer=>peer.localPosts.forEach(p=>allTags.add(`${p.category}-${p.district}-${p.thana}`)));
+    tagFilter.innerHTML = '<option value="">Show All</option>';
+    allTags.forEach(tag=>{
+        let opt = document.createElement('option');
+        opt.value = tag;
+        opt.innerText = tag;
+        tagFilter.appendChild(opt);
+    });
 }
 
 // ----------------------------
 // Voting
-// ----------------------------
 function vote(postId, type){
-  function applyVote(posts){
-    posts.forEach(p=>{
-      if(p.id===postId){
-        if(type==='up') p.votes.up++; else p.votes.down++;
-      }
-    });
-  }
-  
-  applyVote(localPosts);
-  networkPeers.forEach(peer=>applyVote(peer.localPosts));
-  renderFeed();
+    function applyVote(posts){
+        posts.forEach(p=>{
+            if(p.id===postId){
+                if(!p.votes.voters.includes(localUser.peerId)){
+                    if(type==='up') p.votes.up++; else p.votes.down++;
+                    p.votes.voters.push(localUser.peerId);
+                }
+            }
+        });
+    }
+    applyVote(localPosts);
+    networkPeers.forEach(peer=>applyVote(peer.localPosts));
+    savePosts();
+    renderFeed();
 }
 
 // ----------------------------
-// Post New
+// Add Comment
+function addComment(postId, content){
+    if(!content.trim()) return;
+    const comment = {username:localUser.username, peerId:localUser.peerId, content, timestamp:Date.now()};
+    function applyComment(posts){
+        posts.forEach(p=>{ if(p.id===postId) p.comments.push(comment); });
+    }
+    applyComment(localPosts);
+    networkPeers.forEach(peer=>applyComment(peer.localPosts));
+    savePosts();
+    renderFeed();
+}
+
 // ----------------------------
-postBtn.addEventListener('click',()=>{
-  const text = postInput.value.trim();
-  if(!text) return;
-  const category = categorySelect.value || "General";
-  const district = districtInput.value.trim() || "Unknown";
-  const thana = thanaInput.value.trim() || "Unknown";
-  postInput.value = "";
+// New Post
+postBtn.addEventListener('click', ()=>{
+    const text = postInput.value.trim();
+    if(!text) return;
+    const category = categorySelect.value || "General";
+    const district = districtInput.value.trim() || "Unknown";
+    const thana = thanaInput.value.trim() || "Unknown";
+    postInput.value = "";
 
-  const post = {
-    id: crypto.randomUUID(),
-    author: peerId,
-    content: text,
-    timestamp: Date.now(),
-    copies: MAX_COPIES,
-    category,
-    district,
-    thana,
-    votes: {up:0, down:0}
-  };
+    const post = {
+        id: crypto.randomUUID(),
+        username: localUser.username,
+        peerId: localUser.peerId,
+        content: text,
+        timestamp: Date.now(),
+        copies: MAX_COPIES,
+        category, district, thana,
+        votes: {up:0, down:0, voters:[]},
+        comments: [],
+        deleted: false
+    };
+    localPosts.push(post);
 
-  localPosts.push(post);
+    // Broadcast fractional copy to network simulation
+    networkPeers.forEach(peer=>{
+        const fraction = Math.ceil(post.copies / (networkPeers.length+1));
+        const copyPost = {...post, copies:fraction};
+        peer.localPosts.push(copyPost);
+    });
 
-  // Broadcast fractional copy to live peers
-  networkPeers.forEach(peer=>{
-    const fraction = Math.ceil(post.copies / (networkPeers.length+1));
-    const copyPost = {...post, copies:fraction};
-    peer.localPosts.push(copyPost);
-  });
-
-  renderFeed();
+    savePosts();
+    renderFeed();
 });
 
 // ----------------------------
-// Peer Join Simulation
-// ----------------------------
-function joinNetwork(newPeer){
-  networkPeers.forEach(peer=>{
-    peer.localPosts.forEach(p=>{
-      const fraction = Math.ceil(p.copies / (networkPeers.length+2));
-      const copyPost = {...p, copies:fraction};
-      newPeer.localPosts.push(copyPost);
-    });
-  });
-
-  networkPeers.push(newPeer);
-  renderFeed();
-}
-
-// ----------------------------
-// Simulate new peer after 5 sec
-// ----------------------------
-setTimeout(()=>{
-  const newPeer = {peerId: crypto.randomUUID(), localPosts: []};
-  joinNetwork(newPeer);
-  console.log("New peer joined:", newPeer.peerId);
-},5000);
-
-// ----------------------------
-// Filter change
-// ----------------------------
+// Tag Filter Change
 tagFilter.addEventListener('change', renderFeed);
 
 // ----------------------------
-// Initial Render
+// Delete User & All Data
+deleteUserBtn.addEventListener('click', ()=>{
+    if(!confirm("Are you sure you want to DELETE your account and all data? This cannot be undone!")) return;
+    // Remove user posts locally
+    localPosts.forEach(p=>p.deleted=true);
+    savePosts();
+    // Notify network peers (simulation)
+    networkPeers.forEach(peer=>{
+        peer.localPosts.forEach(p=>{
+            if(p.peerId===localUser.peerId) p.deleted=true;
+        });
+    });
+    alert("Your account and all data have been deleted. Reload to start fresh.");
+    // Clear localStorage
+    localStorage.removeItem("posts_"+localUser.username);
+    localUser = null;
+    location.reload();
+});
+
 // ----------------------------
+// Initial Render
 renderFeed();
 </script>
 

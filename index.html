@@ -1,79 +1,36 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DACN - Setup</title>
-    <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .setup-box { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); width: 320px; text-align: center; }
-        .step { display: none; }
-        .step.active { display: block; }
-        button { background: #075e54; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 15px; font-weight: bold; }
-        input { width: 100%; padding: 12px; margin-top: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
-        .key-login { margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; font-size: 13px; }
-    </style>
+  <meta charset="UTF-8">
+  <title>People Country Group</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="setup-box">
-        <div id="step1" class="step active">
-            <h3>ধাপ ১: দেশ নির্বাচন</h3>
-            <p>আপনার লোকেশন অনুযায়ী দেশ নির্বাচন করুন</p>
-            <input type="text" id="country_in" value="Bangladesh">
-            <button onclick="toStep(2)">পরবর্তী ধাপ</button>
-            <div class="key-login">
-                <p>আগে থেকেই কি আছে?</p>
-                <input type="text" id="old_key" placeholder="আপনার প্রাইভেট কি দিন">
-                <button style="background:#444;" onclick="loginWithKey()">লগইন করুন</button>
-            </div>
-        </div>
+<h2 id="country">Loading...</h2>
 
-        <div id="step2" class="step">
-            <h3>ধাপ ২: স্টোরেজ পারমিশন</h3>
-            <p>ডিসেন্ট্রালাইজড নোড হিসেবে কাজ করার জন্য ২০০ এমবি স্টোরেজ পারমিশন প্রয়োজন।</p>
-            <button onclick="toStep(3)">পারমিশন দিন</button>
-        </div>
+<div id="login">
+  <button id="genKey">Generate Secret Key</button>
+  <input id="keyInput" placeholder="Enter Secret Key">
+  <button id="loginBtn">Login</button>
+</div>
 
-        <div id="step3" class="step">
-            <h3>ধাপ ৩: প্রাইভেট কি</h3>
-            <p>আপনার অ্যাকাউন্ট তৈরি। এই কি-টি সেভ রাখুন।</p>
-            <div id="new_key_display" style="font-weight:bold; color:#075e54; margin:10px 0;"></div>
-            <button onclick="finishSetup()">ড্যাশবোর্ডে প্রবেশ করুন</button>
-        </div>
-    </div>
+<div id="app" style="display:none;">
+  <textarea id="postText" placeholder="Write something..."></textarea>
+  <button id="postBtn">Post</button>
 
-    <script>
-        // যদি আগে থেকেই কি থাকে, তবে সরাসরি ড্যাশবোর্ডে পাঠানোর চেষ্টা
-        if(localStorage.getItem('p_key')) window.location.href = "dashboard.html";
+  <hr>
 
-        function toStep(n) {
-            document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
-            document.getElementById('step' + n).classList.add('active');
-            
-            if(n === 3) {
-                const key = "DACN-" + Math.random().toString(36).substr(2, 9).toUpperCase();
-                document.getElementById('new_key_display').innerText = key;
-                localStorage.setItem('temp_key', key);
-            }
-        }
+  <input id="pollQ" placeholder="Poll question">
+  <input id="pollA" placeholder="Option A">
+  <input id="pollB" placeholder="Option B">
+  <button id="pollBtn">Create Poll</button>
 
-        function loginWithKey() {
-            const key = document.getElementById('old_key').value.trim();
-            if(key) {
-                localStorage.setItem('p_key', key);
-                localStorage.setItem('setup_complete', 'true');
-                localStorage.setItem('user_country', 'Global Node');
-                window.location.href = "dashboard.html";
-            }
-        }
+  <hr>
+  <div id="feed"></div>
+</div>
 
-        function finishSetup() {
-            localStorage.setItem('user_country', document.getElementById('country_in').value);
-            localStorage.setItem('p_key', localStorage.getItem('temp_key'));
-            localStorage.setItem('setup_complete', 'true');
-            window.location.href = "dashboard.html";
-        }
-    </script>
+<script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

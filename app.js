@@ -1,125 +1,115 @@
-const client = new WebTorrent()
-let myKey = null
-let room = "Global"
-let dataStore = []
+// ----------------------------
+// Minimal P2P + Distributed Fraction Copy Simulation
+// ----------------------------
 
-// Country detect with fallback
-fetch("https://ipapi.co/country_name/")
-  .then(r => r.text())
-  .then(c => {
-    room = c || "Global"
-    country.innerText = "🌍 " + room
-  })
-  .catch(() => {
-    room = "Global"
-    country.innerText = "🌍 Global"
-  })
+// Simulated Local Storage for this peer
+let localPosts = []; // full posts for this peer
 
-// Generate key
-genKey.onclick = () => {
-  const key = crypto.randomUUID()
-  alert("SAVE THIS KEY:\n" + key)
-  keyInput.value = key
+// Max copies per post
+const MAX_COPIES = 30;
+
+// Simulated network (all live peers)
+let networkPeers = []; // array of {peerId, localPosts}
+
+// Unique ID for this peer (secret key)
+const peerId = crypto.randomUUID();
+console.log("Peer ID:", peerId);
+
+// Simulate Country Detection
+let country = "Bangladesh"; // fallback for demo
+document.getElementById('status').innerText = `Connected: ${country}`;
+
+// HTML Elements
+const feedEl = document.getElementById('feed');
+const postInput = document.getElementById('postInput');
+const postBtn = document.getElementById('postBtn');
+
+// ----------------------------
+// Helper: Render Feed
+// ----------------------------
+function renderFeed() {
+  // Merge all posts from network + local
+  let merged = [...localPosts];
+  networkPeers.forEach(peer => merged.push(...peer.localPosts));
+
+  // Remove duplicates by ID
+  const map = {};
+  merged.forEach(p => map[p.id] = p);
+  merged = Object.values(map);
+
+  // Sort by timestamp descending
+  merged.sort((a,b)=>b.timestamp - a.timestamp);
+
+  // Render
+  feedEl.innerHTML = "";
+  merged.forEach(p=>{
+    const div = document.createElement('div');
+    div.className = 'post';
+    div.innerHTML = `<strong>${p.author}</strong>: ${p.content}<br><small>${new Date(p.timestamp).toLocaleTimeString()}</small>`;
+    feedEl.appendChild(div);
+  });
 }
 
-// Login
-loginBtn.onclick = () => {
-  myKey = keyInput.value.trim()
-  if (!myKey) return alert("Key required")
+// ----------------------------
+// Post Button Click
+// ----------------------------
+postBtn.addEventListener('click',()=>{
+  const text = postInput.value.trim();
+  if(!text) return;
+  postInput.value="";
 
-  login.style.display = "none"
-  app.style.display = "block"
-
-  loadLocal()
-  joinRoom()
-}
-
-// Join P2P room
-function joinRoom() {
-  const magnet = `magnet:?xt=urn:btih:${btoa(room)}`
-  client.add(magnet, torrent => {
-    torrent.on('wire', wire => {
-      wire.use({
-        name: 'sync',
-        onMessage (buf) {
-          const msg = JSON.parse(buf.toString())
-          receive(msg)
-        }
-      })
-    })
-  })
-}
-
-// Broadcast
-function broadcast(msg) {
-  client.torrents.forEach(t => {
-    t.wires.forEach(w => {
-      w.extended('sync', Buffer.from(JSON.stringify(msg)))
-    })
-  })
-}
-
-// Receive
-function receive(msg) {
-  if (dataStore.find(x => x.id === msg.id)) return
-  dataStore.push(msg)
-  saveLocal()
-  render()
-}
-
-// Post
-postBtn.onclick = () => {
-  if (!postText.value) return
-  const msg = {
+  // Create Post Object
+  const post = {
     id: crypto.randomUUID(),
-    type: "post",
-    text: postText.value
-  }
-  receive(msg)
-  broadcast(msg)
-  postText.value = ""
+    author: peerId,
+    content: text,
+    timestamp: Date.now(),
+    copies: MAX_COPIES
+  };
+
+  // Save full locally
+  localPosts.push(post);
+
+  // Broadcast fractionally to live peers
+  networkPeers.forEach(peer=>{
+    const fraction = Math.ceil(post.copies / (networkPeers.length + 1)); // simple distribution
+    const copyPost = {...post, copies: fraction};
+    peer.localPosts.push(copyPost);
+  });
+
+  renderFeed();
+});
+
+// ----------------------------
+// Simulate New Peer Joining
+// ----------------------------
+function joinNetwork(newPeer){
+  // Give fractional copies from existing posts
+  networkPeers.forEach(peer=>{
+    peer.localPosts.forEach(p=>{
+      const fraction = Math.ceil(p.copies / (networkPeers.length + 2)); // distribute evenly
+      const copyPost = {...p, copies: fraction};
+      newPeer.localPosts.push(copyPost);
+    });
+  });
+
+  // Add new peer to network
+  networkPeers.push(newPeer);
+
+  renderFeed();
 }
 
-// Poll
-pollBtn.onclick = () => {
-  const msg = {
-    id: crypto.randomUUID(),
-    type: "poll",
-    q: pollQ.value,
-    a: pollA.value,
-    b: pollB.value,
-    votes: { a: 0, b: 0 }
-  }
-  receive(msg)
-  broadcast(msg)
-}
+// ----------------------------
+// Demo: Add a simulated peer after 5 sec
+// ----------------------------
+setTimeout(()=>{
+  const newPeer = {peerId: crypto.randomUUID(), localPosts: []};
+  joinNetwork(newPeer);
+  console.log("New peer joined:", newPeer.peerId);
+  renderFeed();
+},5000);
 
-// Render
-function render() {
-  feed.innerHTML = ""
-  dataStore.forEach(m => {
-    const d = document.createElement("div")
-    d.className = "post"
-
-    if (m.type === "post") {
-      d.innerText = m.text
-    }
-
-    if (m.type === "poll") {
-      d.innerHTML = `<b>${m.q}</b><br>A: ${m.votes.a} | B: ${m.votes.b}`
-    }
-
-    feed.appendChild(d)
-  })
-}
-
-// Local save/load
-function saveLocal() {
-  localStorage.setItem("data-" + myKey, JSON.stringify(dataStore))
-}
-
-function loadLocal() {
-  const d = localStorage.getItem("data-" + myKey)
-  if (d) dataStore = JSON.parse(d)
-  render()
-}
+// ----------------------------
+// Initial Render
+// ----------------------------
+renderFeed();

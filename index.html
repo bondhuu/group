@@ -3,140 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Select Country</title>
+    <title>Select Your Country</title>
     <style>
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
-            background-color: #ffffff; /* পুরো ব্যাকগ্রাউন্ড সাদা */
+            background-color: #ffffff; /* পিওর সাদা ব্যাকগ্রাউন্ড */
             margin: 0;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            color: #333;
         }
-        .container {
+        .wrapper {
             text-align: center;
-            width: 100%;
-            max-width: 350px;
-            padding: 20px;
+            width: 90%;
+            max-width: 380px;
         }
-        h3 {
-            font-weight: 500;
-            margin-bottom: 30px;
-            color: #555;
+        .label {
+            font-size: 14px;
+            color: #777;
+            margin-bottom: 10px;
         }
-        /* সিলেক্ট বক্সের স্টাইল */
-        .select-box {
+        /* স্টাইলিশ ড্রপডাউন */
+        .select-field {
             width: 100%;
-            padding: 15px;
+            padding: 16px;
             font-size: 18px;
-            font-weight: bold;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            background-color: #fafafa;
-            appearance: none; /* ডিফল্ট অ্যারো সরানোর জন্য */
+            font-weight: 600;
+            border: 2px solid #eeeeee;
+            border-radius: 15px;
+            background-color: #f9f9f9;
+            color: #10b981; /* বাংলাদেশের জন্য ডিফল্ট সবুজ */
             outline: none;
             cursor: pointer;
-            text-align: center;
-            margin-bottom: 25px;
+            margin-bottom: 30px;
             transition: all 0.3s ease;
         }
-        /* দেশের নাম সবুজে দেখানোর জন্য (ডিফল্ট বাংলাদেশ হলে) */
-        #country-select {
-            color: #10b981; /* সবুজ কালার */
+        .select-field:focus {
+            border-color: #10b981;
         }
         /* কন্টিনিউ বাটন */
-        .btn-continue {
+        .btn-next {
             width: 100%;
-            padding: 15px;
+            padding: 16px;
             font-size: 16px;
             font-weight: bold;
             color: white;
-            background-color: #007bff; /* নীল বাটন */
+            background-color: #000000; /* প্রফেশনাল কালো বাটন */
             border: none;
-            border-radius: 12px;
+            border-radius: 15px;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
-            transition: background 0.3s;
+            transition: opacity 0.3s;
         }
-        .btn-continue:hover {
-            background-color: #0056b3;
-        }
-        .loader {
-            font-size: 14px;
-            color: #888;
-            margin-bottom: 10px;
+        .btn-next:active {
+            opacity: 0.8;
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div id="loader" class="loader">আপনার দেশ শনাক্ত করা হচ্ছে...</div>
-        <h3>আপনার দেশ নিশ্চিত করুন</h3>
-
-        <select id="country-select" class="select-box">
-            <option value="">দেশ লোড হচ্ছে...</option>
+    <div class="wrapper">
+        <div class="label" id="status-msg">দেশ শনাক্ত করা হচ্ছে...</div>
+        
+        <select id="country-dropdown" class="select-field">
             <option value="Bangladesh">Bangladesh</option>
             <option value="India">India</option>
             <option value="USA">USA</option>
             <option value="UK">UK</option>
-            </select>
+            <option value="Canada">Canada</option>
+            <option value="Saudi Arabia">Saudi Arabia</option>
+            <option value="Pakistan">Pakistan</option>
+        </select>
 
-        <button class="btn-continue" onclick="nextStep()">Continue</button>
+        <button class="btn-next" onclick="goToNextPage()">Continue</button>
     </div>
 
     <script>
-        const countrySelect = document.getElementById('country-select');
-        const loader = document.getElementById('loader');
+        const dropdown = document.getElementById('country-dropdown');
+        const statusMsg = document.getElementById('status-msg');
 
-        // লোকেশন শনাক্ত করার ফাংশন
-        function detectCountry() {
+        // অরিজিনাল লোকেশন ডিটেকশন
+        window.onload = function() {
             if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((position) => {
+                navigator.geolocation.getCurrentPosition(position => {
                     const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
+                    const lon = position.coords.longitude;
 
-                    // Reverse Geocoding API ব্যবহার করে দেশের নাম আনা
-                    fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`)
-                        .then(res => res.json())
-                        .then(data => {
-                            const detectedCountry = data.countryName;
+                    // রিয়েল টাইম রিভার্স জিওকোডিং API
+                    fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`)
+                    .then(res => res.json())
+                    .then(data => {
+                        const country = data.countryName;
+                        
+                        // ড্রপডাউনে অরিজিনাল দেশ সেট করা
+                        if(country) {
+                            dropdown.value = country;
+                            statusMsg.innerText = "আপনার দেশ শনাক্ত হয়েছে";
                             
-                            // সিলেক্ট বক্সে দেশ সেট করা
-                            countrySelect.value = detectedCountry;
-                            
-                            // যদি বাংলাদেশ হয় তবে সবুজ রঙ নিশ্চিত করা
-                            if(detectedCountry === "Bangladesh") {
-                                countrySelect.style.color = "#10b981"; // সবুজ
-                            } else {
-                                countrySelect.style.color = "#333"; // অন্য দেশের জন্য সাধারণ কালার
-                            }
-
-                            loader.innerText = "লোকেশন শনাক্ত হয়েছে!";
-                        })
-                        .catch(() => {
-                            loader.innerText = "লোকেশন শনাক্ত করা যায়নি।";
-                        });
+                            // রঙ পরিবর্তন লজিক
+                            updateColor(country);
+                        }
+                    })
+                    .catch(() => {
+                        statusMsg.innerText = "অটো-ডিটেক্ট ব্যর্থ, ম্যানুয়ালি সিলেক্ট করুন";
+                    });
                 }, () => {
-                    loader.innerText = "দয়া করে GPS চালু করুন।";
+                    statusMsg.innerText = "লোকেশন পারমিশন না দিলে অটো-ডিটেক্ট হবে না";
                 });
             }
-        }
+        };
 
-        function nextStep() {
-            const selectedCountry = countrySelect.value;
-            if(selectedCountry) {
-                alert(selectedCountry + " এর জন্য পরের ধাপে যাওয়া হচ্ছে...");
-                // এখানে আপনার পরবর্তী পেজের লিঙ্ক দিতে পারেন
+        // ড্রপডাউন পরিবর্তন করলে রঙ বদলানোর জন্য
+        dropdown.onchange = function() {
+            updateColor(this.value);
+        };
+
+        function updateColor(val) {
+            if(val === "Bangladesh") {
+                dropdown.style.color = "#10b981"; // সবুজ
+            } else if(val === "India") {
+                dropdown.style.color = "#ff9933"; // গেরুয়া/কমলা
             } else {
-                alert("দয়া করে একটি দেশ সিলেক্ট করুন!");
+                dropdown.style.color = "#333333"; // ডিফল্ট কালো
             }
         }
 
-        // পেজ লোড হলেই ডিটেকশন শুরু হবে
-        window.onload = detectCountry;
+        // পরবর্তী ব্ল্যাংক পেজে যাওয়ার জন্য
+        function goToNextPage() {
+            // এটি আপনাকে next.html পেজে নিয়ে যাবে
+            window.location.href = "next.html";
+        }
     </script>
 
 </body>

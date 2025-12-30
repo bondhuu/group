@@ -6,22 +6,24 @@
     <title>DACN Secure Node</title>
     <style>
         :root { --h: #075e54; --bg: #efe7dd; --me: #d9fdd3; }
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; flex-direction: column; height: 100vh; }
-        .header { background: var(--h); color: #fff; padding: 12px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        /* Header */
+        .header { background: var(--h); color: #fff; padding: 12px; display: flex; justify-content: space-between; align-items: center; z-index: 10; }
         .key-btn { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 5px 10px; border-radius: 5px; font-size: 11px; cursor: pointer; }
-        #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column-reverse; }
-        .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; font-size: 14px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); position: relative; word-wrap: break-word; }
+        
+        /* Input Area (এখন উপরে) */
+        .footer { background: #f0f2f5; padding: 12px; display: flex; align-items: center; gap: 10px; box-sizing: border-box; border-bottom: 1px solid #ddd; z-index: 9; }
+        input { flex: 1; padding: 12px; border-radius: 20px; border: none; outline: none; font-size: 15px; }
+        .send-btn { font-size: 24px; cursor: pointer; color: var(--h); border:none; background:none; }
+
+        /* Chat Window (নিচে) */
+        #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; }
+        .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; font-size: 14px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); position: relative; word-wrap: break-word; }
         .msg-me { background: var(--me); align-self: flex-end; }
         .msg-other { background: #fff; align-self: flex-start; }
         
-        .chat-img { 
-            width: 100%; max-width: 220px; border-radius: 8px; 
-            cursor: pointer; display: block; margin-top: 5px;
-        }
-
-        .footer { background: #f0f2f5; padding: 10px; display: flex; align-items: center; gap: 10px; box-sizing: border-box; }
-        input { flex: 1; padding: 12px; border-radius: 20px; border: none; outline: none; font-size: 15px; }
-        .send-btn { font-size: 24px; cursor: pointer; color: var(--h); border:none; background:none; }
+        .chat-img { width: 100%; max-width: 220px; border-radius: 8px; cursor: pointer; display: block; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -29,27 +31,20 @@
         <div><b id="c-name">Loading...</b><br><small id="storage-info" style="font-size: 9px;">Storage: Checking...</small></div>
         <button class="key-btn" onclick="copyKey()">🔑 COPY KEY</button>
     </div>
-    <div id="chat"></div>
+
     <div class="footer">
         <label style="cursor:pointer; font-size: 22px;">📷<input type="file" id="file-input" hidden accept="image/*" onchange="processImage(this)"></label>
         <input type="text" id="inp" placeholder="Type a message...">
         <button class="send-btn" onclick="send()">➤</button>
     </div>
 
+    <div id="chat"></div>
+
     <script>
-        // সিকিউরিটি চেক
         if (localStorage.getItem('setup_complete') !== 'true') window.location.href = "index.html";
 
         let db;
-        // ১. ডাটাবেস কানেকশন ফিক্স
         const request = indexedDB.open("DACN_Storage_V2", 1);
-
-        request.onupgradeneeded = (e) => {
-            db = e.target.result;
-            if (!db.objectStoreNames.contains("messages")) {
-                db.createObjectStore("messages", { keyPath: "id", autoIncrement: true });
-            }
-        };
 
         request.onsuccess = (e) => {
             db = e.target.result;
@@ -57,15 +52,8 @@
             updateStorageInfo();
         };
 
-        request.onerror = (e) => {
-            console.error("DB Error", e);
-            document.getElementById('storage-info').innerText = "Storage Error!";
-        };
-
-        // ২. ইমেজ কমপ্রেশন লজিক
         function processImage(input) {
             if (input.files && input.files[0]) {
-                const file = input.files[0];
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const img = new Image();
@@ -73,56 +61,54 @@
                     img.onload = function() {
                         const canvas = document.createElement('canvas');
                         const ctx = canvas.getContext('2d');
-                        
-                        const maxWidth = 800; // স্ট্যান্ডার্ড সাইজ
+                        const maxWidth = 800;
                         const scale = maxWidth / img.width;
                         canvas.width = maxWidth;
                         canvas.height = img.height * scale;
-                        
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        const compressedData = canvas.toDataURL('image/jpeg', 0.6); // ৬০% কোয়ালিটি
-                        saveToDB({ type: 'image', content: compressedData, sender: 'me', time: getTime() });
+                        saveToDB({ type: 'image', content: canvas.toDataURL('image/jpeg', 0.6), sender: 'me', time: getTime() });
                     };
                 };
-                reader.readAsDataURL(file);
+                reader.readAsDataURL(input.files[0]);
             }
         }
 
-        // ৩. ডাটাবেসে সেভ ও লোড
         function saveToDB(data) {
-            if(!db) return;
             const transaction = db.transaction(["messages"], "readwrite");
             const store = transaction.objectStore("messages");
             store.add(data);
-            renderMsg(data);
+            renderMsg(data, true); // নতুন মেসেজ সবার উপরে দিতে true
             updateStorageInfo();
         }
 
         function loadMessages() {
-            if(!db) return;
             const transaction = db.transaction(["messages"], "readonly");
             const store = transaction.objectStore("messages");
+            const msgs = [];
             store.openCursor().onsuccess = (e) => {
                 const cursor = e.target.result;
                 if (cursor) {
-                    renderMsg(cursor.value);
+                    msgs.push(cursor.value);
                     cursor.continue();
+                } else {
+                    // পুরনো মেসেজগুলো সিরিয়ালি লোড করা
+                    msgs.reverse().forEach(m => renderMsg(m, false));
                 }
             };
         }
 
-        function renderMsg(data) {
+        function renderMsg(data, isNew) {
             const d = document.createElement('div');
             d.className = 'msg ' + (data.sender === 'me' ? 'msg-me' : 'msg-other');
-            
-            if (data.type === 'text') {
-                d.innerHTML = data.content;
-            } else {
-                d.innerHTML = `<img src="${data.content}" class="chat-img" onclick="downloadImg('${data.content}')">`;
-            }
-            
+            d.innerHTML = data.type === 'text' ? data.content : `<img src="${data.content}" class="chat-img" onclick="downloadImg('${data.content}')">`;
             d.innerHTML += `<div style="font-size:9px; text-align:right; margin-top:4px; opacity:0.6;">${data.time}</div>`;
-            document.getElementById('chat').prepend(d);
+            
+            const chatBox = document.getElementById('chat');
+            if(isNew) {
+                chatBox.prepend(d); // নতুন মেসেজ উপরে
+            } else {
+                chatBox.appendChild(d); // লোড করার সময় সিরিয়াল বজায় রাখা
+            }
         }
 
         function send() {
@@ -134,31 +120,15 @@
         }
 
         function updateStorageInfo() {
-            if (navigator.storage && navigator.storage.estimate) {
-                navigator.storage.estimate().then(estimate => {
-                    const used = Math.round(estimate.usage / (1024 * 1024));
-                    document.getElementById('storage-info').innerText = `Storage: ${used}MB / 200MB Used`;
-                });
-            }
-        }
-
-        function downloadImg(base64) {
-            const link = document.createElement('a');
-            link.href = base64;
-            link.download = "DACN_File_" + Date.now() + ".jpg";
-            link.click();
+            navigator.storage.estimate().then(estimate => {
+                const used = Math.round(estimate.usage / (1024 * 1024));
+                document.getElementById('storage-info').innerText = `Storage: ${used}MB / 200MB Used`;
+            });
         }
 
         function getTime() { return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
-        
         document.getElementById('c-name').innerText = localStorage.getItem('user_country') || "Bangladesh Node";
-        
-        function copyKey() { 
-            const key = localStorage.getItem('p_key') || "NO-KEY";
-            navigator.clipboard.writeText(key); 
-            alert("প্রাইভেট কি কপি হয়েছে!"); 
-        }
-
+        function copyKey() { navigator.clipboard.writeText(localStorage.getItem('p_key')); alert("কি কপি হয়েছে!"); }
         document.getElementById('inp').addEventListener("keypress", (e) => { if(e.key === "Enter") send(); });
     </script>
 </body>

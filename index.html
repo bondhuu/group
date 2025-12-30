@@ -3,46 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verified Country Access</title>
+    <title>Node Identity - Step 1</title>
     <style>
         :root {
-            --bg: #ffffff;
             --primary: #000000;
             --success: #10b981;
-            --error: #ef4444;
             --gray: #94a3b8;
+            --bg: #ffffff;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', -apple-system, sans-serif;
             background: var(--bg);
             margin: 0;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
+            color: #1e293b;
         }
 
         .card {
             width: 100%;
             max-width: 380px;
-            padding: 30px;
+            padding: 40px 24px;
             text-align: center;
         }
 
-        /* ভেরিফিকেশন স্ট্যাটাস ব্যাজ */
+        /* স্ট্যাটাস ব্যাজ */
         .status-badge {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
+            gap: 10px;
+            padding: 10px 20px;
+            background: #f1f5f9;
             border-radius: 100px;
             font-size: 13px;
             font-weight: 600;
-            background: #f1f5f9;
             color: var(--gray);
-            margin-bottom: 25px;
-            transition: all 0.4s;
+            margin-bottom: 30px;
+            transition: 0.3s;
         }
 
         .status-badge.verified {
@@ -52,8 +52,8 @@
 
         /* স্পিনার এনিমেশন */
         .spinner {
-            width: 14px;
-            height: 14px;
+            width: 16px;
+            height: 16px;
             border: 2px solid #cbd5e1;
             border-top: 2px solid var(--primary);
             border-radius: 50%;
@@ -62,30 +62,36 @@
 
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        h2 { font-size: 24px; font-weight: 800; margin-bottom: 10px; }
-        
+        h2 { font-size: 28px; font-weight: 800; margin: 0 0 10px; letter-spacing: -1px; }
+        p { color: #64748b; font-size: 15px; margin-bottom: 40px; }
+
+        /* ড্রপডাউন ডিজাইন */
         .select-field {
             width: 100%;
             padding: 18px;
             font-size: 18px;
-            font-weight: 600;
+            font-weight: 700;
             border: 2px solid #f1f5f9;
             border-radius: 16px;
             background: #f8fafc;
-            margin-bottom: 30px;
+            color: #94a3b8;
             outline: none;
-            transition: 0.3s;
-            pointer-events: none; /* ভেরিফাই হওয়ার আগে ক্লিক করা যাবে না */
-            opacity: 0.6;
+            cursor: not-allowed;
+            appearance: none;
+            margin-bottom: 30px;
+            pointer-events: none;
+            transition: all 0.3s;
         }
 
-        .select-field.ready {
-            pointer-events: auto;
-            opacity: 1;
+        .select-field.active {
             border-color: #e2e8f0;
+            background: #ffffff;
+            color: var(--primary);
+            cursor: pointer;
+            pointer-events: auto;
         }
 
-        /* কন্টিনিউ বাটন (লকড মোড) */
+        /* কন্টিনিউ বাটন */
         .btn-continue {
             width: 100%;
             padding: 18px;
@@ -93,22 +99,22 @@
             font-weight: 700;
             border-radius: 16px;
             border: none;
-            cursor: not-allowed;
             background: #e2e8f0;
             color: #94a3b8;
+            cursor: not-allowed;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .btn-continue.enabled {
+        .btn-continue.active {
             background: var(--primary);
-            color: white;
+            color: #ffffff;
             cursor: pointer;
             box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
 
-        .btn-continue.enabled:hover {
+        .btn-continue.active:hover {
             transform: translateY(-2px);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
         }
     </style>
 </head>
@@ -117,76 +123,97 @@
     <div class="card">
         <div id="badge" class="status-badge">
             <div id="loader" class="spinner"></div>
-            <span id="status-text">Verifying Location...</span>
+            <span id="badge-text">Verifying Location...</span>
         </div>
 
-        <h2>Identify Node</h2>
-        <p style="color: #64748b; font-size: 14px; margin-bottom: 30px;">আপনার অরিজিনাল লোকেশন শনাক্ত করা হচ্ছে।</p>
+        <h2>Node Identity</h2>
+        <p>ডিসেন্ট্রালাইজড নেটওয়ার্কে প্রবেশের জন্য আপনার বর্তমান দেশ নিশ্চিত করুন।</p>
 
         <select id="country-select" class="select-field">
-            <option value="">Detecting...</option>
+            <option value="">Detecting Location...</option>
             <option value="Bangladesh">Bangladesh</option>
             <option value="India">India</option>
             <option value="USA">United States</option>
             <option value="UK">United Kingdom</option>
-            <option value="Canada">Canada</option>
+            <option value="Other">Other Country</option>
         </select>
 
-        <button id="continue-btn" class="btn-continue" onclick="proceed()" disabled>Continue</button>
+        <button id="next-btn" class="btn-continue" onclick="startNextStep()" disabled>Continue</button>
     </div>
 
     <script>
-        const select = document.getElementById('country-select');
-        const btn = document.getElementById('continue-btn');
+        // সেশন ক্লিয়ার করা (প্রতিবার নতুন করে শুরু করতে হবে)
+        sessionStorage.clear();
+
+        const countrySelect = document.getElementById('country-select');
+        const nextBtn = document.getElementById('next-btn');
         const badge = document.getElementById('badge');
-        const statusText = document.getElementById('status-text');
+        const badgeText = document.getElementById('badge-text');
         const loader = document.getElementById('loader');
 
         window.onload = function() {
             if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    const lat = pos.coords.latitude;
-                    const lon = pos.coords.longitude;
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
 
-                    fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`)
-                    .then(res => res.json())
-                    .then(data => {
-                        const country = data.countryName;
-                        
-                        // ১. দেশ অটো-সেট করা
-                        select.value = country;
-                        select.classList.add('ready');
-                        
-                        // ২. বাটন আনলক করা
-                        btn.disabled = false;
-                        btn.classList.add('enabled');
+                        // রিয়েল টাইম কান্ট্রি ডিটেকশন API
+                        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`)
+                        .then(res => res.json())
+                        .then(data => {
+                            const detectedCountry = data.countryName;
 
-                        // ৩. ব্যাজ আপডেট (সবুজ Checkmark স্টাইল)
-                        badge.classList.add('verified');
+                            // ১. ড্রপডাউন আপডেট ও আনলক
+                            countrySelect.value = detectedCountry || "Bangladesh";
+                            countrySelect.classList.add('active');
+                            
+                            // ২. বাটন আনলক
+                            nextBtn.disabled = false;
+                            nextBtn.classList.add('active');
+
+                            // ৩. ব্যাজ আপডেট
+                            badge.classList.add('verified');
+                            loader.style.display = 'none';
+                            badgeText.innerHTML = '✓ Identity Verified';
+
+                            // ৪. সিকিউরিটি টোকেন সেট করা (এটি পরের পেজের চাবিকাঠি)
+                            sessionStorage.setItem('step1_verified', 'true');
+                            
+                            // বাংলাদেশের জন্য স্পেশাল কালার
+                            if(detectedCountry === "Bangladesh") {
+                                countrySelect.style.color = "#10b981";
+                            }
+                        })
+                        .catch(() => {
+                            badgeText.innerText = "Error: Select Manually";
+                            enableManualSelection();
+                        });
+                    },
+                    (error) => {
+                        badgeText.innerText = "GPS Disabled! Turn it on.";
                         loader.style.display = 'none';
-                        statusText.innerHTML = '✓ Identity Verified';
-                        
-                        // বাংলাদেশের জন্য রঙ পরিবর্তন
-                        if(country === "Bangladesh") select.style.color = "#10b981";
-                    })
-                    .catch(() => {
-                        statusText.innerText = "Error: Use Manual Selection";
-                        btn.disabled = false;
-                        btn.classList.add('enabled');
-                    });
-                }, () => {
-                    statusText.innerText = "Please enable GPS/Location";
-                    loader.style.display = 'none';
-                });
+                        enableManualSelection();
+                    }
+                );
             }
         };
 
-        function proceed() {
-            if(!btn.disabled) {
+        function enableManualSelection() {
+            countrySelect.classList.add('active');
+            countrySelect.value = "Bangladesh";
+            nextBtn.disabled = false;
+            nextBtn.classList.add('active');
+            sessionStorage.setItem('step1_verified', 'true');
+        }
+
+        function startNextStep() {
+            if (sessionStorage.getItem('step1_verified') === 'true') {
                 window.location.href = "next.html";
+            } else {
+                alert("নিরাপত্তা জনিত কারণে আপনাকে আগে লোকেশন ভেরিফাই করতে হবে।");
             }
         }
     </script>
-
 </body>
 </html>

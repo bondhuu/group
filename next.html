@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Allocate Storage - DACN Node</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --primary: #000000;
+            --accent: #2563eb;
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 400px;
+            padding: 30px;
+            text-align: center;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .storage-icon {
+            font-size: 50px;
+            margin-bottom: 20px;
+        }
+
+        h2 { font-size: 24px; font-weight: 800; color: var(--text-main); margin-bottom: 10px; }
+        p { font-size: 15px; color: var(--text-sub); line-height: 1.6; margin-bottom: 30px; }
+
+        /* স্টোরেজ বার ডিজাইন */
+        .storage-bar-container {
+            background: #f1f5f9;
+            height: 12px;
+            border-radius: 100px;
+            width: 100%;
+            margin-bottom: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .storage-progress {
+            background: var(--accent);
+            height: 100%;
+            width: 0%; /* শুরুতেই ০ */
+            border-radius: 100px;
+            transition: width 1.5s cubic-bezier(0.1, 0.5, 0.5, 1);
+        }
+
+        .storage-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 40px;
+        }
+
+        /* পারমিশন বাটন */
+        .btn-grant {
+            width: 100%;
+            padding: 18px;
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            background: var(--primary);
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+
+        .btn-grant:hover {
+            transform: translateY(-2px);
+            background: #1e293b;
+        }
+
+        .btn-grant:active { transform: translateY(0); }
+
+        .success-text {
+            color: #10b981;
+            font-weight: bold;
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="storage-icon">📦</div>
+        <h2>Storage Allocation</h2>
+        <p>ডিসেন্ট্রালাইজড ডাটা স্টোর করার জন্য আপনার ডিভাইসে <b>২০০ এমবি (200MB)</b> জায়গা বরাদ্দ করা প্রয়োজন।</p>
+
+        <div class="storage-bar-container">
+            <div id="progress" class="storage-progress"></div>
+        </div>
+        
+        <div class="storage-info">
+            <span>Quota Required: 200 MB</span>
+            <span id="percent">0%</span>
+        </div>
+
+        <button id="grant-btn" class="btn-grant" onclick="requestStorage()">Grant Storage Permission</button>
+        <div id="success-msg" class="success-text">✓ 200MB Storage Allocated Successfully!</div>
+    </div>
+
+    <script>
+        const progressBar = document.getElementById('progress');
+        const percentText = document.getElementById('percent');
+        const grantBtn = document.getElementById('grant-btn');
+        const successMsg = document.getElementById('success-msg');
+
+        function requestStorage() {
+            // ব্রাউজার থেকে স্টোরেজ কোটা রিকোয়েস্ট (সিমুলেটেড অরিজিনাল ফিল)
+            if (navigator.storage && navigator.storage.estimate) {
+                navigator.storage.persist().then(persistent => {
+                    grantBtn.innerText = "Allocating Space...";
+                    grantBtn.disabled = true;
+                    grantBtn.style.opacity = "0.7";
+
+                    // এনিমেশন শুরু
+                    let width = 0;
+                    let interval = setInterval(() => {
+                        if (width >= 100) {
+                            clearInterval(interval);
+                            allocationComplete();
+                        } else {
+                            width++;
+                            progressBar.style.width = width + '%';
+                            percentText.innerText = Math.floor((width * 200) / 100) + " MB";
+                        }
+                    }, 20); // এনিমেশন স্পিড
+                });
+            } else {
+                alert("আপনার ব্রাউজার স্টোরেজ পারমিশন সাপোর্ট করে না।");
+            }
+        }
+
+        function allocationComplete() {
+            grantBtn.style.display = "none";
+            successMsg.style.display = "block";
+            
+            // ৩ সেকেন্ড পর পরবর্তী ড্যাশবোর্ডে নিয়ে যাবে
+            setTimeout(() => {
+                alert("স্টোরেজ বরাদ্দ সম্পন্ন হয়েছে। এবার আপনি নেটওয়ার্কে যুক্ত হতে পারবেন।");
+                // window.location.href = "dashboard.html"; // পরবর্তী ধাপের জন্য
+            }, 1000);
+        }
+    </script>
+
+</body>
+</html>

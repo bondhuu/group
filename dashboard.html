@@ -14,50 +14,57 @@
         .msg-me { background: var(--me); align-self: flex-end; }
         .msg-other { background: #fff; align-self: flex-start; }
         
-        /* ছবি প্রদর্শনের স্ট্যান্ডার্ড সাইজ */
         .chat-img { 
-            width: 200px; 
-            height: 200px; 
-            object-fit: cover; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            display: block;
-            margin-top: 5px;
+            width: 100%; max-width: 220px; border-radius: 8px; 
+            cursor: pointer; display: block; margin-top: 5px;
         }
 
         .footer { background: #f0f2f5; padding: 10px; display: flex; align-items: center; gap: 10px; box-sizing: border-box; }
         input { flex: 1; padding: 12px; border-radius: 20px; border: none; outline: none; font-size: 15px; }
-        .send-btn { font-size: 20px; cursor: pointer; color: var(--h); }
+        .send-btn { font-size: 24px; cursor: pointer; color: var(--h); border:none; background:none; }
     </style>
 </head>
 <body>
     <div class="header">
-        <div><b id="c-name">Node</b><br><small id="storage-info" style="font-size: 9px;">Storage: Calculating...</small></div>
+        <div><b id="c-name">Loading...</b><br><small id="storage-info" style="font-size: 9px;">Storage: Checking...</small></div>
         <button class="key-btn" onclick="copyKey()">🔑 COPY KEY</button>
     </div>
     <div id="chat"></div>
     <div class="footer">
-        <label style="cursor:pointer; font-size: 20px;">📷<input type="file" id="file-input" hidden accept="image/*" onchange="processImage(this)"></label>
+        <label style="cursor:pointer; font-size: 22px;">📷<input type="file" id="file-input" hidden accept="image/*" onchange="processImage(this)"></label>
         <input type="text" id="inp" placeholder="Type a message...">
-        <div class="send-btn" onclick="send()">➤</div>
+        <button class="send-btn" onclick="send()">➤</button>
     </div>
 
     <script>
+        // সিকিউরিটি চেক
+        if (localStorage.getItem('setup_complete') !== 'true') window.location.href = "index.html";
+
         let db;
-        const request = indexedDB.open("DACN_Storage", 1);
+        // ১. ডাটাবেস কানেকশন ফিক্স
+        const request = indexedDB.open("DACN_Storage_V2", 1);
+
         request.onupgradeneeded = (e) => {
             db = e.target.result;
-            db.createObjectStore("messages", { keyPath: "id", autoIncrement: true });
+            if (!db.objectStoreNames.contains("messages")) {
+                db.createObjectStore("messages", { keyPath: "id", autoIncrement: true });
+            }
         };
+
         request.onsuccess = (e) => {
             db = e.target.result;
             loadMessages();
             updateStorageInfo();
         };
 
-        // ১. ছবি কম্প্রেস করার ফাংশন (Standard Size: 800px width)
+        request.onerror = (e) => {
+            console.error("DB Error", e);
+            document.getElementById('storage-info').innerText = "Storage Error!";
+        };
+
+        // ২. ইমেজ কমপ্রেশন লজিক
         function processImage(input) {
-            if (input.files[0]) {
+            if (input.files && input.files[0]) {
                 const file = input.files[0];
                 const reader = new FileReader();
                 reader.onload = function(e) {
@@ -67,16 +74,13 @@
                         const canvas = document.createElement('canvas');
                         const ctx = canvas.getContext('2d');
                         
-                        // স্ট্যান্ডার্ড সাইজ সেট করা (Max Width 800px)
-                        const maxWidth = 800;
+                        const maxWidth = 800; // স্ট্যান্ডার্ড সাইজ
                         const scale = maxWidth / img.width;
                         canvas.width = maxWidth;
                         canvas.height = img.height * scale;
                         
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        
-                        // কম্প্রেসড ইমেজ ডাটা (Quality 0.7)
-                        const compressedData = canvas.toDataURL('image/jpeg', 0.7);
+                        const compressedData = canvas.toDataURL('image/jpeg', 0.6); // ৬০% কোয়ালিটি
                         saveToDB({ type: 'image', content: compressedData, sender: 'me', time: getTime() });
                     };
                 };
@@ -84,8 +88,9 @@
             }
         }
 
-        // ২. ডাটাবেসে সেভ করা ও স্টোরেজ চেক
+        // ৩. ডাটাবেসে সেভ ও লোড
         function saveToDB(data) {
+            if(!db) return;
             const transaction = db.transaction(["messages"], "readwrite");
             const store = transaction.objectStore("messages");
             store.add(data);
@@ -94,6 +99,7 @@
         }
 
         function loadMessages() {
+            if(!db) return;
             const transaction = db.transaction(["messages"], "readonly");
             const store = transaction.objectStore("messages");
             store.openCursor().onsuccess = (e) => {
@@ -112,38 +118,48 @@
             if (data.type === 'text') {
                 d.innerHTML = data.content;
             } else {
-                // ছবি ডাউনলোড করার অপশনসহ ডিসপ্লে
-                d.innerHTML = `<img src="${data.content}" class="chat-img" onclick="downloadImg('${data.content}')"><small style="display:block; font-size:8px; color:gray;">Click to download</small>`;
+                d.innerHTML = `<img src="${data.content}" class="chat-img" onclick="downloadImg('${data.content}')">`;
             }
             
             d.innerHTML += `<div style="font-size:9px; text-align:right; margin-top:4px; opacity:0.6;">${data.time}</div>`;
             document.getElementById('chat').prepend(d);
         }
 
-        function downloadImg(base64) {
-            const link = document.createElement('a');
-            link.href = base64;
-            link.download = "DACN_Image_" + Date.now() + ".jpg";
-            link.click();
-        }
-
         function send() {
-            const val = document.getElementById('inp').value;
+            const inp = document.getElementById('inp');
+            const val = inp.value.trim();
             if(!val) return;
             saveToDB({ type: 'text', content: val, sender: 'me', time: getTime() });
-            document.getElementById('inp').value = "";
+            inp.value = "";
         }
 
         function updateStorageInfo() {
-            navigator.storage.estimate().then(estimate => {
-                const used = Math.round(estimate.usage / (1024 * 1024));
-                document.getElementById('storage-info').innerText = `Storage: ${used}MB / 200MB Used`;
-            });
+            if (navigator.storage && navigator.storage.estimate) {
+                navigator.storage.estimate().then(estimate => {
+                    const used = Math.round(estimate.usage / (1024 * 1024));
+                    document.getElementById('storage-info').innerText = `Storage: ${used}MB / 200MB Used`;
+                });
+            }
+        }
+
+        function downloadImg(base64) {
+            const link = document.createElement('a');
+            link.href = base64;
+            link.download = "DACN_File_" + Date.now() + ".jpg";
+            link.click();
         }
 
         function getTime() { return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
-        document.getElementById('c-name').innerText = localStorage.getItem('user_country') || "Node";
-        function copyKey() { navigator.clipboard.writeText(localStorage.getItem('p_key')); alert("Key Copied!"); }
+        
+        document.getElementById('c-name').innerText = localStorage.getItem('user_country') || "Bangladesh Node";
+        
+        function copyKey() { 
+            const key = localStorage.getItem('p_key') || "NO-KEY";
+            navigator.clipboard.writeText(key); 
+            alert("প্রাইভেট কি কপি হয়েছে!"); 
+        }
+
+        document.getElementById('inp').addEventListener("keypress", (e) => { if(e.key === "Enter") send(); });
     </script>
 </body>
 </html>

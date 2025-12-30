@@ -1,0 +1,15 @@
+body {
+  font-family: sans-serif;
+  padding: 10px;
+}
+
+textarea, input {
+  width: 100%;
+  margin: 5px 0;
+}
+
+.post {
+  border: 1px solid #ccc;
+  padding: 5px;
+  margin-top: 5px;
+}

@@ -6,120 +6,60 @@
     <title>DACN Secure Node</title>
     <style>
         :root { --h: #075e54; --bg: #efe7dd; --me: #d9fdd3; }
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
-        /* Header Fix */
-        .header { 
-            background: var(--h); 
-            color: #fff; 
-            padding: 10px 15px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            z-index: 10; 
-            height: 60px;
-            box-sizing: border-box;
-        }
-
-        .side-box { width: 80px; font-size: 10px; }
-        .country-title { flex: 1; text-align: center; font-weight: bold; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        
-        .key-btn { 
-            background: rgba(255,255,255,0.2); 
-            border: none; 
-            color: #fff; 
-            padding: 5px 8px; 
-            border-radius: 4px; 
-            font-size: 10px; 
-            cursor: pointer;
-            width: 70px;
-        }
-        
-        /* Input Area Fix */
-        .input-area { 
-            background: #f0f2f5; 
-            padding: 10px; 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-            border-bottom: 1px solid #ddd; 
-            z-index: 9;
-        }
-        .input-area input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #ddd; outline: none; font-size: 15px; }
-        .send-btn { font-size: 24px; cursor: pointer; color: var(--h); border:none; background:none; padding: 0 5px; }
-
-        /* Chat Window */
+        body { margin: 0; font-family: sans-serif; background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .header { background: var(--h); color: #fff; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; height: 60px; box-sizing: border-box; }
+        .side-box { width: 90px; font-size: 11px; }
+        .country-title { flex: 1; text-align: center; font-weight: bold; font-size: 18px; }
+        .key-btn { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; }
+        .input-area { background: #f0f2f5; padding: 10px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #ddd; }
+        input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #ddd; outline: none; font-size: 15px; }
+        .send-btn { font-size: 24px; cursor: pointer; color: var(--h); border:none; background:none; }
         #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; }
-        .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; font-size: 14px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); word-wrap: break-word; }
+        .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; font-size: 14.5px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); word-wrap: break-word; position: relative; }
         .msg-me { background: var(--me); align-self: flex-end; }
         .msg-other { background: #fff; align-self: flex-start; }
-        
-        .chat-img { width: 100%; max-width: 220px; border-radius: 8px; cursor: pointer; display: block; margin-top: 5px; }
+        .chat-img { width: 100%; max-width: 250px; border-radius: 6px; cursor: pointer; display: block; margin-top: 5px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="side-box" id="storage-info">Checking...</div>
-        <div class="country-title" id="c-name">Bangladesh</div>
-        <div class="side-box" style="text-align: right;">
-            <button class="key-btn" onclick="copyKey()">🔑 KEY</button>
-        </div>
+        <div class="side-box" id="storage-info">Active</div>
+        <div class="country-title" id="c-name">Loading...</div>
+        <div class="side-box" style="text-align: right;"><button class="key-btn" onclick="copyKey()">🔑 KEY</button></div>
     </div>
-
     <div class="input-area">
         <label style="cursor:pointer; font-size: 22px;">📷<input type="file" id="file-input" hidden accept="image/*" onchange="processImage(this)"></label>
-        <input type="text" id="inp" placeholder="Type a message...">
+        <input type="text" id="inp" placeholder="মেসেজ লিখুন...">
         <button class="send-btn" onclick="send()">➤</button>
     </div>
-
     <div id="chat"></div>
 
     <script>
-        if (localStorage.getItem('setup_complete') !== 'true') window.location.href = "index.html";
-
         let db;
-        const request = indexedDB.open("DACN_Storage_V2", 1);
-
-        request.onsuccess = (e) => {
-            db = e.target.result;
-            loadMessages();
-            updateStorageInfo();
+        // ১. ডাটাবেস সবার আগে কানেক্ট হবে
+        const openDB = () => {
+            const request = indexedDB.open("DACN_ULTIMATE_DB", 5);
+            request.onupgradeneeded = (e) => {
+                db = e.target.result;
+                if (!db.objectStoreNames.contains("messages")) {
+                    db.createObjectStore("messages", { keyPath: "id", autoIncrement: true });
+                }
+            };
+            request.onsuccess = (e) => {
+                db = e.target.result;
+                loadMessages(); // সেভ করা মেসেজ লোড করো
+                checkStorage(); // এরপর স্টোরেজ মাপো
+            };
+            request.onerror = () => { document.getElementById('storage-info').innerText = "Storage Offline"; };
         };
 
-        function processImage(input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = new Image();
-                    img.src = e.target.result;
-                    img.onload = function() {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        const maxWidth = 800;
-                        const scale = maxWidth / img.width;
-                        canvas.width = maxWidth;
-                        canvas.height = img.height * scale;
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        saveToDB({ type: 'image', content: canvas.toDataURL('image/jpeg', 0.6), sender: 'me', time: getTime() });
-                    };
-                };
-                reader.readAsDataURL(input.files[0]);
-            }
-        }
-
-        function saveToDB(data) {
-            if(!db) return;
-            const transaction = db.transaction(["messages"], "readwrite");
-            const store = transaction.objectStore("messages");
-            store.add(data);
-            renderMsg(data, true);
-            updateStorageInfo();
-        }
-
+        // ২. মেসেজ লোড করার ফাংশন
         function loadMessages() {
-            if(!db) return;
             const transaction = db.transaction(["messages"], "readonly");
             const store = transaction.objectStore("messages");
+            const chatBox = document.getElementById('chat');
+            chatBox.innerHTML = ''; // পরিষ্কার করো
+            
             const msgs = [];
             store.openCursor().onsuccess = (e) => {
                 const cursor = e.target.result;
@@ -129,6 +69,17 @@
                 } else {
                     msgs.reverse().forEach(m => renderMsg(m, false));
                 }
+            };
+        }
+
+        // ৩. মেসেজ সেভ করার ফাংশন
+        function saveToDB(data) {
+            const transaction = db.transaction(["messages"], "readwrite");
+            const store = transaction.objectStore("messages");
+            const request = store.add(data);
+            request.onsuccess = () => {
+                renderMsg(data, true);
+                checkStorage();
             };
         }
 
@@ -142,32 +93,48 @@
         }
 
         function send() {
-            const inp = document.getElementById('inp');
-            const val = inp.value.trim();
+            const val = document.getElementById('inp').value.trim();
             if(!val || !db) return;
-            saveToDB({ type: 'text', content: val, sender: 'me', time: getTime() });
-            inp.value = "";
+            saveToDB({ type: 'text', content: val, sender: 'me', time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) });
+            document.getElementById('inp').value = "";
         }
 
-        function updateStorageInfo() {
-            if (navigator.storage && navigator.storage.estimate) {
-                navigator.storage.estimate().then(estimate => {
-                    const used = Math.round(estimate.usage / (1024 * 1024));
-                    document.getElementById('storage-info').innerText = used + "MB Used";
-                });
+        function processImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const scale = 800 / img.width;
+                        canvas.width = 800; canvas.height = img.height * scale;
+                        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                        saveToDB({ type: 'image', content: canvas.toDataURL('image/jpeg', 0.6), sender: 'me', time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) });
+                    };
+                };
+                reader.readAsDataURL(input.files[0]);
             }
         }
 
-        function getTime() { return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
-        document.getElementById('c-name').innerText = localStorage.getItem('user_country') || "Bangladesh";
-        
-        function copyKey() { 
-            const key = localStorage.getItem('p_key') || "NO-KEY";
-            navigator.clipboard.writeText(key); 
-            alert("প্রাইভেট কি কপি হয়েছে!"); 
+        // স্টোরেজ চেক (এটি না চললেও চ্যাট চলবে)
+        function checkStorage() {
+            if (navigator.storage && navigator.storage.estimate) {
+                navigator.storage.estimate().then(e => {
+                    const used = (e.usage / (1024 * 1024)).toFixed(1);
+                    document.getElementById('storage-info').innerText = used + "MB / 200MB";
+                }).catch(() => { document.getElementById('storage-info').innerText = "Active"; });
+            } else { document.getElementById('storage-info').innerText = "Active"; }
         }
+
+        function downloadImg(b64) { const a = document.createElement('a'); a.href = b64; a.download = "DACN_"+Date.now()+".jpg"; a.click(); }
+        function copyKey() { navigator.clipboard.writeText(localStorage.getItem('p_key') || "NO-KEY"); alert("কি কপি হয়েছে!"); }
         
+        document.getElementById('c-name').innerText = localStorage.getItem('user_country') || "Bangladesh";
         document.getElementById('inp').addEventListener("keypress", (e) => { if(e.key === "Enter") send(); });
+        
+        // অ্যাপ চালু করো
+        openDB();
     </script>
 </body>
 </html>

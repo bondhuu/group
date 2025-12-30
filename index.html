@@ -5,12 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Decentralized Group Feed</title>
 <style>
-  body { font-family: sans-serif; background:#f5f5f5; margin:0; padding:20px; }
+  body { font-family:sans-serif; background:#f5f5f5; margin:0; padding:20px; }
+  #status { text-align:center; margin-bottom:10px; }
+  #newPost { display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap; }
+  #newPost input, #newPost select, #newPost button { padding:10px; font-size:14px; }
   #feed { max-width:600px; margin:auto; }
   .post { background:#fff; padding:10px; margin:10px 0; border-radius:5px; box-shadow:0 0 5px rgba(0,0,0,0.1);}
-  #newPost { display:flex; gap:5px; margin-bottom:20px; }
-  #newPost input, #newPost button { padding:10px; font-size:14px; }
-  #status { text-align:center; margin-bottom:10px; }
+  .tags { font-size:12px; color:#555; margin-bottom:5px; cursor:pointer; }
+  .votes { margin-top:5px; }
+  .votes button { margin-right:5px; }
+  #filter { margin-bottom:15px; }
 </style>
 </head>
 <body>
@@ -19,88 +23,157 @@
 
 <div id="newPost">
   <input type="text" id="postInput" placeholder="Write something...">
+  <select id="categorySelect">
+    <option value="">Category</option>
+    <option value="Education">Education</option>
+    <option value="Health">Health</option>
+    <option value="Politics">Politics</option>
+    <option value="Local News">Local News</option>
+  </select>
+  <input type="text" id="districtInput" placeholder="District">
+  <input type="text" id="thanaInput" placeholder="Thana">
   <button id="postBtn">Post</button>
+</div>
+
+<div id="filter">
+  <label>Filter by Tag: </label>
+  <select id="tagFilter">
+    <option value="">Show All</option>
+  </select>
 </div>
 
 <div id="feed"></div>
 
 <script>
 // ----------------------------
-// Minimal P2P + Distributed Fraction Copy Simulation
+// Minimal P2P + Distributed Fraction Copy + Voting + Tags
 // ----------------------------
 
-// Simulated Local Storage for this peer
-let localPosts = []; // full posts for this peer
-
-// Max copies per post
+let localPosts = [];
+let networkPeers = [];
 const MAX_COPIES = 30;
-
-// Simulated network (all live peers)
-let networkPeers = []; // array of {peerId, localPosts}
-
-// Unique ID for this peer (secret key)
 const peerId = crypto.randomUUID();
 console.log("Peer ID:", peerId);
 
-// Simulate Country Detection
-let country = "Bangladesh"; // fallback for demo
+let country = "Bangladesh";
 document.getElementById('status').innerText = `Connected: ${country}`;
 
-// HTML Elements
 const feedEl = document.getElementById('feed');
 const postInput = document.getElementById('postInput');
 const postBtn = document.getElementById('postBtn');
+const categorySelect = document.getElementById('categorySelect');
+const districtInput = document.getElementById('districtInput');
+const thanaInput = document.getElementById('thanaInput');
+const tagFilter = document.getElementById('tagFilter');
 
 // ----------------------------
 // Helper: Render Feed
 // ----------------------------
-function renderFeed() {
-  // Merge all posts from network + local
+function renderFeed(){
+  let selectedTag = tagFilter.value || null;
+  
   let merged = [...localPosts];
-  networkPeers.forEach(peer => merged.push(...peer.localPosts));
-
+  networkPeers.forEach(peer=>merged.push(...peer.localPosts));
+  
   // Remove duplicates by ID
   const map = {};
   merged.forEach(p => map[p.id] = p);
   merged = Object.values(map);
-
-  // Sort by timestamp descending
+  
+  // Filter by selected tag
+  if(selectedTag){
+    merged = merged.filter(p => `${p.category}-${p.district}-${p.thana}`===selectedTag);
+  }
+  
   merged.sort((a,b)=>b.timestamp - a.timestamp);
-
+  
   // Render
   feedEl.innerHTML = "";
   merged.forEach(p=>{
     const div = document.createElement('div');
-    div.className = 'post';
-    div.innerHTML = `<strong>${p.author}</strong>: ${p.content}<br><small>${new Date(p.timestamp).toLocaleTimeString()}</small>`;
+    div.className='post';
+    div.innerHTML = `
+      <div class="tags">${p.category} | ${p.district} | ${p.thana}</div>
+      <div><strong>${p.author.substring(0,6)}</strong>: ${p.content}</div>
+      <div class="votes">
+        <button onclick="vote('${p.id}','up')">👍 ${p.votes.up}</button>
+        <button onclick="vote('${p.id}','down')">👎 ${p.votes.down}</button>
+      </div>
+      <small>${new Date(p.timestamp).toLocaleString()}</small>
+    `;
     feedEl.appendChild(div);
+  });
+
+  updateTagFilterOptions();
+}
+
+// ----------------------------
+// Update Tag Filter Dropdown
+// ----------------------------
+function updateTagFilterOptions(){
+  let allTags = new Set();
+  localPosts.forEach(p=>{
+    allTags.add(`${p.category}-${p.district}-${p.thana}`);
+  });
+  networkPeers.forEach(peer=>peer.localPosts.forEach(p=>{
+    allTags.add(`${p.category}-${p.district}-${p.thana}`);
+  }));
+  
+  tagFilter.innerHTML = '<option value="">Show All</option>';
+  allTags.forEach(tag=>{
+    let opt = document.createElement('option');
+    opt.value = tag;
+    opt.innerText = tag;
+    tagFilter.appendChild(opt);
   });
 }
 
 // ----------------------------
-// Post Button Click
+// Voting
+// ----------------------------
+function vote(postId, type){
+  function applyVote(posts){
+    posts.forEach(p=>{
+      if(p.id===postId){
+        if(type==='up') p.votes.up++; else p.votes.down++;
+      }
+    });
+  }
+  
+  applyVote(localPosts);
+  networkPeers.forEach(peer=>applyVote(peer.localPosts));
+  renderFeed();
+}
+
+// ----------------------------
+// Post New
 // ----------------------------
 postBtn.addEventListener('click',()=>{
   const text = postInput.value.trim();
   if(!text) return;
-  postInput.value="";
+  const category = categorySelect.value || "General";
+  const district = districtInput.value.trim() || "Unknown";
+  const thana = thanaInput.value.trim() || "Unknown";
+  postInput.value = "";
 
-  // Create Post Object
   const post = {
     id: crypto.randomUUID(),
     author: peerId,
     content: text,
     timestamp: Date.now(),
-    copies: MAX_COPIES
+    copies: MAX_COPIES,
+    category,
+    district,
+    thana,
+    votes: {up:0, down:0}
   };
 
-  // Save full locally
   localPosts.push(post);
 
-  // Broadcast fractionally to live peers
+  // Broadcast fractional copy to live peers
   networkPeers.forEach(peer=>{
-    const fraction = Math.ceil(post.copies / (networkPeers.length + 1)); // simple distribution
-    const copyPost = {...post, copies: fraction};
+    const fraction = Math.ceil(post.copies / (networkPeers.length+1));
+    const copyPost = {...post, copies:fraction};
     peer.localPosts.push(copyPost);
   });
 
@@ -108,33 +181,34 @@ postBtn.addEventListener('click',()=>{
 });
 
 // ----------------------------
-// Simulate New Peer Joining
+// Peer Join Simulation
 // ----------------------------
 function joinNetwork(newPeer){
-  // Give fractional copies from existing posts
   networkPeers.forEach(peer=>{
     peer.localPosts.forEach(p=>{
-      const fraction = Math.ceil(p.copies / (networkPeers.length + 2)); // distribute evenly
-      const copyPost = {...p, copies: fraction};
+      const fraction = Math.ceil(p.copies / (networkPeers.length+2));
+      const copyPost = {...p, copies:fraction};
       newPeer.localPosts.push(copyPost);
     });
   });
 
-  // Add new peer to network
   networkPeers.push(newPeer);
-
   renderFeed();
 }
 
 // ----------------------------
-// Demo: Add a simulated peer after 5 sec
+// Simulate new peer after 5 sec
 // ----------------------------
 setTimeout(()=>{
   const newPeer = {peerId: crypto.randomUUID(), localPosts: []};
   joinNetwork(newPeer);
   console.log("New peer joined:", newPeer.peerId);
-  renderFeed();
 },5000);
+
+// ----------------------------
+// Filter change
+// ----------------------------
+tagFilter.addEventListener('change', renderFeed);
 
 // ----------------------------
 // Initial Render

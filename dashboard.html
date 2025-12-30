@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DACN Secure Chat</title>
+    <style>
+        :root {
+            --wa-bg: #efe7dd;
+            --wa-header: #075e54;
+            --wa-bubble: #ffffff;
+            --wa-my-bubble: #d9fdd3;
+        }
+
+        body, html { height: 100%; margin: 0; font-family: 'Segoe UI', Helvetica, sans-serif; background: var(--wa-bg); }
+
+        /* Header */
+        .header {
+            background: var(--wa-header);
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 { margin: 0; font-size: 18px; }
+        .key-btn {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 11px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* Chat Area */
+        #chat-window {
+            display: flex;
+            flex-direction: column-reverse;
+            padding: 15px;
+            overflow-y: auto;
+            height: calc(100vh - 120px);
+            padding-bottom: 80px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 14.5px;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+            word-wrap: break-word;
+        }
+
+        .msg-other { background: var(--wa-bubble); align-self: flex-start; border-top-left-radius: 0; }
+        .msg-me { background: var(--wa-my-bubble); align-self: flex-end; border-top-right-radius: 0; }
+
+        /* Footer Input */
+        .footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: #f0f2f5;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        .input-box {
+            flex: 1;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 20px;
+            font-size: 15px;
+            outline: none;
+        }
+
+        .icon-btn {
+            font-size: 20px;
+            margin: 0 10px;
+            cursor: pointer;
+            color: #54656f;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            <h1 id="country-tag">Bangladesh Node</h1>
+            <div style="font-size: 10px; color: #d1d1d1;">Last Active: Just Now</div>
+        </div>
+        <button class="key-btn" onclick="copyMyKey()">📋 COPY KEY</button>
+    </div>
+
+    <div id="chat-window">
+        </div>
+
+    <div class="footer">
+        <label class="icon-btn">📎<input type="file" id="img-send" hidden accept="image/*" onchange="sendImage(this)"></label>
+        <input type="text" id="msg-input" class="input-box" placeholder="Type a message...">
+        <div class="icon-btn" onclick="sendText()">➤</div>
+    </div>
+
+    <script>
+        // --- ১. কি ম্যানেজমেন্ট লজিক (৩০ দিনের এক্সপায়ারি) ---
+        function manageKey() {
+            const now = new Date().getTime();
+            const lastVisit = localStorage.getItem('last_visit');
+            const thirtyDays = 30 * 24 * 60 * 60 * 1000; // ৩০ দিন মিলিসেকেন্ডে
+
+            if (lastVisit && (now - lastVisit > thirtyDays)) {
+                // ৩০ দিনের বেশি হয়ে গেছে, কি ডিলিট করে দাও
+                localStorage.removeItem('my_private_key');
+            }
+
+            // যদি কি না থাকে তবে নতুন কি তৈরি করো
+            if (!localStorage.getItem('my_private_key')) {
+                const newKey = "DACN-PK-" + Math.random().toString(36).substr(2, 12).toUpperCase();
+                localStorage.setItem('my_private_key', newKey);
+            }
+
+            // ভিজিট টাইম আপডেট করো
+            localStorage.setItem('last_visit', now);
+        }
+
+        manageKey(); // পেজ লোড হলেই রান করবে
+
+        function copyMyKey() {
+            const key = localStorage.getItem('my_private_key');
+            navigator.clipboard.writeText(key);
+            alert("আপনার প্রাইভেট কি কপি হয়েছে। এটি ৩০ দিন অফলাইন থাকলে স্বয়ংক্রিয়ভাবে বদলে যাবে।");
+        }
+
+        // --- ২. চ্যাট লজিক ---
+        const chatWindow = document.getElementById('chat-window');
+        const msgInput = document.getElementById('msg-input');
+
+        function sendText() {
+            const val = msgInput.value.trim();
+            if(!val) return;
+            addMsg(val, 'msg-me');
+            msgInput.value = "";
+        }
+
+        function sendImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const imgHtml = `<img src="${e.target.result}" style="max-width:100%; border-radius:5px;">`;
+                    addMsg(imgHtml, 'msg-me');
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function addMsg(content, type) {
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            div.innerHTML = content;
+            chatWindow.prepend(div);
+        }
+
+        msgInput.addEventListener("keypress", (e) => { if(e.key === "Enter") sendText(); });
+
+        // কান্ট্রি নাম সেট করা
+        document.getElementById('country-tag').innerText = localStorage.getItem('user_country') || "Bangladesh";
+    </script>
+</body>
+</html>

@@ -3,147 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Storage Allocation - Step 2</title>
+    <title>Allocate Space - Step 2</title>
     <style>
-        :root {
-            --bg: #ffffff;
-            --primary: #000000;
-            --accent: #2563eb;
-            --success: #10b981;
-            --gray: #64748b;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background: var(--bg);
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            color: #1e293b;
-        }
-
-        .card {
-            width: 100%;
-            max-width: 380px;
-            padding: 40px 24px;
-            text-align: center;
-        }
-
-        .icon-box { font-size: 50px; margin-bottom: 20px; }
-
-        h2 { font-size: 26px; font-weight: 800; margin-bottom: 10px; }
-        p { color: var(--gray); font-size: 15px; line-height: 1.6; margin-bottom: 35px; }
-
-        /* প্রোগ্রেস বার */
-        .progress-container {
-            background: #f1f5f9;
-            height: 12px;
-            border-radius: 100px;
-            width: 100%;
-            margin-bottom: 10px;
-            overflow: hidden;
-            display: none; /* শুরুতে লুকানো */
-        }
-
-        .progress-bar {
-            background: var(--primary);
-            height: 100%;
-            width: 0%;
-            transition: 0.1s;
-        }
-
-        .status-text {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 30px;
-            display: none;
-        }
-
-        /* বাটন */
-        .btn {
-            width: 100%;
-            padding: 18px;
-            font-size: 16px;
-            font-weight: 700;
-            color: white;
-            background: var(--primary);
-            border: none;
-            border-radius: 16px;
-            cursor: pointer;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-            transition: 0.3s;
-        }
-
-        .btn:hover { background: #1e293b; transform: translateY(-2px); }
-        .btn:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; transform: none; }
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
+        .card { width: 90%; max-width: 350px; }
+        .bar-bg { background: #f1f5f9; height: 10px; border-radius: 10px; margin: 20px 0; overflow: hidden; display: none; }
+        .bar-fill { background: #000; height: 100%; width: 0%; transition: 0.1s; }
+        .btn { width: 100%; padding: 16px; background: #000; color: #fff; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
-
     <div class="card">
-        <div class="icon-box">📦</div>
-        <h2>Allocate Space</h2>
-        <p>ডিসেন্ট্রালাইজড ডেটা নোড সচল রাখতে আপনার ডিভাইসে <b>২০০ এমবি (200MB)</b> স্টোরেজ বরাদ্দ করা প্রয়োজন।</p>
-
-        <div id="bar-box" class="progress-container">
-            <div id="bar" class="progress-bar"></div>
-        </div>
-        
-        <div id="status" class="status-text">Allocating: 0 MB</div>
-
-        <button id="alloc-btn" class="btn" onclick="startAllocation()">Grant Storage Permission</button>
+        <div style="font-size: 40px;">📦</div>
+        <h2>Allocate 200MB</h2>
+        <p style="color: #64748b;">নোড ডাটা স্টোর করার জন্য পারমিশন দিন।</p>
+        <div id="bar-box" class="bar-bg"><div id="bar" class="bar-fill"></div></div>
+        <p id="status" style="font-size: 14px; font-weight: bold;"></p>
+        <button id="btn" class="btn" onclick="start()">Grant Permission</button>
     </div>
-
     <script>
-        // --- সিকিউরিটি চেক (Security Validation) ---
-        // যদি প্রথম পেজ থেকে ভেরিফাইড হয়ে না আসে, তবে তাকে index.html-এ পাঠাবে
-        window.onload = function() {
-            if (sessionStorage.getItem('step1_verified') !== 'true') {
-                alert("Security Alert: অনুগ্রহ করে প্রথম ধাপ (লোকেশন ভেরিফিকেশন) সম্পন্ন করুন।");
-                window.location.href = "index.html";
-            }
-        };
-
-        async function startAllocation() {
-            const btn = document.getElementById('alloc-btn');
-            const barBox = document.getElementById('bar-box');
-            const bar = document.getElementById('bar');
-            const status = document.getElementById('status');
-
-            // ১. ব্রাউজার স্টোরেজ পারমিশন চাওয়া (অরিজিনাল ফিল)
-            if (navigator.storage && navigator.storage.persist) {
-                await navigator.storage.persist();
-            }
-
-            // ইন্টারফেস পরিবর্তন
-            btn.disabled = true;
-            btn.innerText = "Processing...";
-            barBox.style.display = "block";
-            status.style.display = "block";
-
+        if (localStorage.getItem('step1_ok') !== 'true') window.location.href = "index.html";
+        function start() {
+            document.getElementById('btn').style.display = 'none';
+            document.getElementById('bar-box').style.display = 'block';
             let mb = 0;
-            const target = 200;
-
-            // ২. স্টোরেজ এলোকেশন সিমুলেশন
-            let interval = setInterval(() => {
-                if (mb >= target) {
-                    clearInterval(interval);
-                    
-                    // ধাপ ২ সফল হয়েছে - টোকেন সেভ করা
-                    sessionStorage.setItem('step2_verified', 'true');
-                    
-                    status.innerText = "✓ 200MB Reserved Successfully";
-                    status.style.color = "#10b981";
-                    btn.innerText = "Proceed to Final Step";
-                    btn.disabled = false;
-                    btn.onclick = () => window.location.href = "final.html"; // ৩য় পেজে যাওয়ার জন্য
+            let inter = setInterval(() => {
+                if (mb >= 200) {
+                    clearInterval(inter);
+                    localStorage.setItem('setup_complete', 'true');
+                    document.getElementById('status').innerText = "✓ 200MB Allocated";
+                    setTimeout(() => { window.location.href = "dashboard.html"; }, 1000);
                 } else {
-                    mb += 4; // স্পিডে বাড়বে
-                    let percent = (mb / target) * 100;
-                    bar.style.width = percent + "%";
-                    status.innerText = "Allocating: " + mb + " MB / " + target + " MB";
+                    mb += 4;
+                    document.getElementById('bar').style.width = (mb/200)*100 + "%";
+                    document.getElementById('status').innerText = "Allocating: " + mb + "MB";
                 }
             }, 50);
         }

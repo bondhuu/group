@@ -3,36 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ডিসেন্ট্রালাইজড গ্রুপ চ্যাট</title>
+    <title>P2P গ্রুপ চ্যাট (হিস্ট্রি সিঙ্ক সহ)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
         #setup-box { position: fixed; inset: 0; background: #075e54; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; gap: 15px; }
         #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { max-width: 80%; padding: 10px; border-radius: 10px; background: white; font-size: 14px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        .msg { max-width: 80%; padding: 10px; border-radius: 10px; background: white; font-size: 14px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); word-wrap: break-word; }
         .mine { align-self: flex-end; background: #dcf8c6; }
         .others { align-self: flex-start; }
-        #input-area { background: #f0f0f0; padding: 10px; display: flex; gap: 10px; }
-        input { padding: 12px; border-radius: 25px; border: none; outline: none; }
-        button { background: #075e54; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; }
         .sender-name { font-size: 11px; font-weight: bold; color: #128c7e; margin-bottom: 3px; display: block; }
+        .time { font-size: 10px; color: #999; text-align: right; display: block; margin-top: 4px; }
+        #input-area { background: #f0f0f0; padding: 10px; display: flex; gap: 10px; border-top: 1px solid #ddd; }
+        input { flex: 1; padding: 12px; border-radius: 25px; border: none; outline: none; }
+        button { background: #075e54; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        #status-bar { font-size: 12px; padding: 5px; text-align: center; background: #eee; color: #555; }
     </style>
 </head>
 <body>
 
 <div id="setup-box">
-    <h2>P2P গ্রুপ চ্যাট</h2>
+    <h2>P2P সিকিউর চ্যাট</h2>
     <input type="text" id="user-name" placeholder="আপনার নাম লিখুন" style="width: 250px;">
-    <input type="text" id="room-pass" placeholder="রুম পাসওয়ার্ড (যেমন: class7)" style="width: 250px;">
-    <button onclick="startChat()">প্রবেশ করুন</button>
+    <input type="text" id="room-pass" placeholder="রুম পাসওয়ার্ড দিন" style="width: 250px;">
+    <button onclick="startChat()">রুমে প্রবেশ করুন</button>
 </div>
 
+<div id="status-bar">কানেকশন চেক করা হচ্ছে...</div>
 <div id="chat-container"></div>
 
 <div id="input-area">
-    <input type="text" id="message-input" style="flex:1" placeholder="মেসেজ লিখুন...">
+    <input type="text" id="message-input" placeholder="মেসেজ লিখুন...">
     <button onclick="sendMessage()">পাঠান</button>
 </div>
 
@@ -48,7 +51,6 @@
         appId: "1:786452731446:web:038b49d9c73d3f52a5aa97"
     };
 
-    // ফায়ারবেস শুরু করা
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
@@ -60,22 +62,22 @@
         myName = document.getElementById('user-name').value.trim();
         roomPass = document.getElementById('room-pass').value.trim();
 
-        if(!myName || !roomPass) return alert("দয়া করে নাম এবং পাসওয়ার্ড দিন");
+        if(!myName || !roomPass) return alert("নাম এবং পাসওয়ার্ড দিন");
 
-        // ১. চ্যাট হিস্ট্রি লোড করা
-        chatHistory = JSON.parse(localStorage.getItem('chat_' + roomPass)) || [];
+        // লোকাল স্টোরেজ থেকে পুরনো মেসেজ লোড
+        chatHistory = JSON.parse(localStorage.getItem('p2p_history_' + roomPass)) || [];
         displayMessages();
 
         peer = new Peer();
 
         peer.on('open', (myId) => {
             document.getElementById('setup-box').style.display = 'none';
+            document.getElementById('status-bar').innerText = "রুম: " + roomPass + " | অনলাইন";
             
-            // ২. নিজের আইডি ফায়ারবেসে রাখা যাতে অন্যরা খুঁজে পায়
             const roomRef = db.ref('rooms/' + roomPass);
             roomRef.push({ id: myId, name: myName });
 
-            // ৩. আগে থেকেই যারা রুমে আছে তাদের সাথে কানেক্ট হওয়া
+            // অনলাইনে থাকা অন্যদের সাথে কানেক্ট হওয়া
             roomRef.once('value', (snapshot) => {
                 snapshot.forEach((child) => {
                     const data = child.val();
@@ -83,7 +85,7 @@
                 });
             });
 
-            // ৪. নতুন কেউ জয়েন করলে তার সাথে অটো কানেক্ট হওয়া
+            // নতুন কেউ জয়েন করলে অটো কানেক্ট
             roomRef.on('child_added', (snapshot) => {
                 const data = snapshot.val();
                 if(data.id !== myId) connectToPeer(data.id);
@@ -104,9 +106,29 @@
     function setupConnection(conn) {
         conn.on('open', () => {
             if(!connections.find(c => c.peer === conn.peer)) connections.push(conn);
+            // নতুন জয়েন করার পর হিস্ট্রির জন্য রিকোয়েস্ট পাঠানো
+            conn.send({ type: 'SYNC_REQUEST' });
         });
+
         conn.on('data', (data) => {
-            saveAndDisplay(data, 'others');
+            // যদি কেউ হিস্ট্রি রিকোয়েস্ট করে
+            if (data.type === 'SYNC_REQUEST') {
+                if(chatHistory.length > 0) {
+                    conn.send({ type: 'SYNC_DATA', history: chatHistory });
+                }
+            } 
+            // যদি কেউ হিস্ট্রি পাঠায়
+            else if (data.type === 'SYNC_DATA') {
+                if(data.history.length > chatHistory.length) {
+                    chatHistory = data.history;
+                    localStorage.setItem('p2p_history_' + roomPass, JSON.stringify(chatHistory));
+                    displayMessages();
+                }
+            } 
+            // সাধারণ মেসেজ
+            else {
+                saveAndDisplay(data, 'others');
+            }
         });
     }
 
@@ -115,18 +137,20 @@
         const text = input.value.trim();
         if(!text) return;
 
-        const msgObj = { sender: myName, text: text, time: new Date().toLocaleTimeString() };
+        const msgObj = { 
+            sender: myName, 
+            text: text, 
+            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
+        };
         
-        // কানেক্টেড সবার কাছে পাঠানো
         connections.forEach(c => c.send(msgObj));
-
         saveAndDisplay(msgObj, 'mine');
         input.value = '';
     }
 
     function saveAndDisplay(msg, type) {
         chatHistory.push({...msg, type});
-        localStorage.setItem('chat_' + roomPass, JSON.stringify(chatHistory));
+        localStorage.setItem('p2p_history_' + roomPass, JSON.stringify(chatHistory));
         renderMsg(msg, type);
     }
 
@@ -136,6 +160,7 @@
             <div class="msg ${type}">
                 <span class="sender-name">${msg.sender}</span>
                 ${msg.text}
+                <span class="time">${msg.time}</span>
             </div>
         `;
         container.innerHTML += html;
@@ -143,8 +168,9 @@
     }
 
     function displayMessages() {
-        document.getElementById('chat-container').innerHTML = '';
-        chatHistory.forEach(m => renderMsg(m, m.type));
+        const container = document.getElementById('chat-container');
+        container.innerHTML = '';
+        chatHistory.forEach(m => renderMsg(m, m.type || 'others'));
     }
 </script>
 </body>

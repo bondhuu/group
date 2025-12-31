@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Secure P2P - Cloud Sync & Search</title>
+    <title>Secure P2P - Fixed Connection</title>
     
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -19,7 +19,7 @@
             z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         #menu-btn { cursor: pointer; font-size: 20px; padding: 5px; }
-        #status-dot { width: 10px; height: 10px; background: #ff4d4d; border-radius: 50%; border: 1px solid white; }
+        #status-dot { width: 10px; height: 10px; background: #ff4d4d; border-radius: 50%; border: 1px solid white; transition: 0.3s; }
         #room-info { font-size: 13px; flex: 1; font-weight: bold; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
         #controls-wrapper { flex: 2; display: flex; align-items: center; gap: 8px; }
@@ -45,20 +45,11 @@
         .time { font-size: 9px; color: #888; text-align: right; margin-top: 3px; }
         .bottom-spacer { height: 65px; width: 100%; flex-shrink: 0; }
 
-        /* Sidebar & Search */
         #pin-sidebar { position: fixed; left: -280px; top: 0; bottom: 0; width: 260px; background: #f4f7f6; z-index: 2500; transition: 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.2); padding: 20px; overflow-y: auto; }
         #pin-sidebar.open { left: 0; }
-        
-        #search-user-box { 
-            width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; 
-            margin-bottom: 15px; font-size: 14px; outline: none;
-        }
+        #search-user-box { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 15px; font-size: 14px; outline: none; }
 
-        .checklist-item { 
-            padding: 10px; background: white; margin-bottom: 8px; border-radius: 8px; 
-            display: flex; align-items: center; justify-content: space-between; 
-            border: 1px solid #eee; font-weight: bold; color: #075e54; font-size: 13px;
-        }
+        .checklist-item { padding: 10px; background: white; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #eee; font-weight: bold; color: #075e54; font-size: 13px; }
         .checklist-item input { transform: scale(1.2); cursor: pointer; }
         .remove-user { color: #ff4d4d; font-size: 11px; cursor: pointer; margin-left: 5px; }
 
@@ -87,9 +78,7 @@
         <h3 style="margin:0; color:#075e54;">My Checklist</h3>
         <span onclick="toggleSidebar()" style="cursor:pointer; font-size:24px;">✕</span>
     </div>
-    
     <input type="text" id="search-user-box" placeholder="Search Tag (e.g. #1234)..." onkeypress="handleSearch(event)">
-    
     <div id="checklist-ui"></div>
 </div>
 
@@ -148,13 +137,13 @@
         myName = document.getElementById('user-name').value.trim();
         roomPass = document.getElementById('room-pass').value.trim();
         let key = document.getElementById('private-key').value.trim();
-        if(!myName || !roomPass || !key) return alert("Required!");
+        if(!myName || !roomPass || !key) return alert("All fields required!");
 
         myTag = "#" + Array.from(key).reduce((a, b) => a + b.charCodeAt(0), 0).toString().slice(-4);
         document.getElementById('setup-box').style.display = 'none';
         document.getElementById('room-txt').innerText = "Room: " + roomPass;
 
-        // ক্লাউড থেকে চেক-লিস্ট রিকভারি
+        // Recovery from Cloud
         db.ref('user_backups/' + myTag + '/checklist').once('value', snap => {
             if(snap.exists()) {
                 savedChecklist = snap.val();
@@ -163,66 +152,82 @@
             }
         });
 
-        chatHistory = JSON.parse(localStorage.getItem('chat_vCloud_'+roomPass)) || [];
+        chatHistory = JSON.parse(localStorage.getItem('chat_history_'+roomPass)) || [];
         renderAll();
         updateChecklistUI();
 
-        peer = new Peer({ config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]}});
+        initPeer();
+    }
+
+    function initPeer() {
+        peer = new Peer({
+            debug: 1,
+            config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }, { 'urls': 'stun:stun1.l.google.com:19302' }]}
+        });
         
         peer.on('open', id => {
             myPeerID = id;
+            console.log("My Peer ID:", id);
             const myRef = db.ref('p2p_active/'+roomPass).child(id);
             myRef.set({id, name: myName, tag: myTag, time: Date.now()});
             myRef.onDisconnect().remove();
 
+            // Auto connect to others
             db.ref('p2p_active/'+roomPass).on('value', snap => {
                 const users = snap.val() || {};
-                for (let k in users) if (k !== id && !connections[k]) setupConn(peer.connect(k, { reliable: true }));
+                for (let k in users) {
+                    if (k !== id && !connections[k]) {
+                        setupConn(peer.connect(k, { reliable: true }));
+                    }
+                }
             });
         });
+
         peer.on('connection', setupConn);
-    }
-
-    // আইডি দিয়ে সার্চ করার ফাংশন
-    function handleSearch(e) {
-        if(e.key === 'Enter') {
-            const query = document.getElementById('search-user-box').value.trim();
-            if(!query) return;
-
-            // চ্যাট হিস্টোরি থেকে ইউজারকে খোঁজা
-            const found = chatHistory.find(m => m.tag === query || `${m.sender} ${m.tag}` === query || m.tag.includes(query));
-            
-            if(found) {
-                addToChecklist(found.sender, found.tag, true);
-                document.getElementById('search-user-box').value = '';
-            } else {
-                alert("User not found in recent history. They must send at least one message first.");
-            }
-        }
+        peer.on('error', err => {
+            console.error("Peer error:", err);
+            if(err.type === 'peer-unavailable') checkStatus();
+        });
     }
 
     function setupConn(conn) {
         if(!conn) return;
         conn.on('open', () => {
             connections[conn.peer] = conn;
-            document.getElementById('status-dot').style.background = '#00ff00';
+            updateStatusDot();
             conn.send({type: 'SYNC', history: chatHistory});
         });
         conn.on('data', d => {
             if(d.type === 'SYNC') mergeData(d.history);
             else saveMsg(d, 'others');
         });
-        conn.on('close', () => { delete connections[conn.peer]; checkStatus(); });
+        conn.on('close', () => { 
+            delete connections[conn.peer]; 
+            updateStatusDot(); 
+        });
     }
 
-    function checkStatus() {
-        if(Object.keys(connections).length === 0) document.getElementById('status-dot').style.background = '#ff4d4d';
+    function updateStatusDot() {
+        const dot = document.getElementById('status-dot');
+        if(Object.keys(connections).length > 0) {
+            dot.style.background = '#00ff00'; // Green
+        } else {
+            dot.style.background = '#ff4d4d'; // Red
+        }
     }
 
-    function manualConnect() {
-        const otherID = document.getElementById('manual-peer-id').value.trim();
-        if(otherID) setupConn(peer.connect(otherID));
-        toggleManual(false);
+    function handleSearch(e) {
+        if(e.key === 'Enter') {
+            const query = document.getElementById('search-user-box').value.trim();
+            if(!query) return;
+            const found = chatHistory.find(m => m.tag === query || m.tag.includes(query));
+            if(found) {
+                addToChecklist(found.sender, found.tag, true);
+                document.getElementById('search-user-box').value = '';
+            } else {
+                alert("User not found in recent history.");
+            }
+        }
     }
 
     function sendMessage() {
@@ -238,7 +243,7 @@
         if(chatHistory.find(m => m.mid === msg.mid)) return;
         msg.msgType = type;
         chatHistory.unshift(msg);
-        localStorage.setItem('chat_vCloud_'+roomPass, JSON.stringify(chatHistory));
+        localStorage.setItem('chat_history_'+roomPass, JSON.stringify(chatHistory));
         renderAll();
     }
 
@@ -247,7 +252,7 @@
         remote.forEach(r => { if(!chatHistory.find(l => l.mid === r.mid)) { chatHistory.push(r); changed = true; }});
         if(changed) {
             chatHistory.sort((a,b) => b.mid - a.mid);
-            localStorage.setItem('chat_vCloud_'+roomPass, JSON.stringify(chatHistory));
+            localStorage.setItem('chat_history_'+roomPass, JSON.stringify(chatHistory));
             renderAll();
         }
     }
@@ -271,16 +276,12 @@
 
     function addToChecklist(name, tag, silent = false) {
         if(tag === myTag) return;
-        if(silent || confirm(`Add ${name} to your personal checklist?`)) {
+        if(silent || confirm(`Add ${name} to checklist?`)) {
             if(!savedChecklist.find(u => u.tag === tag)) {
                 savedChecklist.push({name, tag});
                 localStorage.setItem('my_saved_checklist', JSON.stringify(savedChecklist));
-                
-                // ক্লাউড ব্যাকআপ
                 db.ref('user_backups/' + myTag + '/checklist').set(savedChecklist);
-                
                 updateChecklistUI();
-                if(!silent) alert(`${name} added!`);
             }
         }
     }
@@ -310,8 +311,10 @@
 
     function toggleCheck(index) {
         const cb = document.getElementById(`check-${index}`);
-        cb.checked = !cb.checked;
-        handleFilterChange(cb, savedChecklist[index].tag);
+        if(cb) {
+            cb.checked = !cb.checked;
+            handleFilterChange(cb, savedChecklist[index].tag);
+        }
     }
 
     function removeFromChecklist(index) {

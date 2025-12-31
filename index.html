@@ -1,102 +1,141 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 <head>
-<meta charset="UTF-8">
-<title>Minimal P2P Connect Page</title>
-<style>
-  body { font-family: Arial, sans-serif; padding: 20px; }
-  input, button { padding: 5px; margin: 5px 0; }
-  #network-page { display: none; margin-top: 20px; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P অটো-কানেক্ট চ্যাট</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        #header { background: #075e54; color: white; padding: 15px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 80%; padding: 10px; border-radius: 10px; font-size: 14px; position: relative; line-height: 1.4; }
+        .mine { align-self: flex-end; background: #dcf8c6; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        .others { align-self: flex-start; background: white; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        .sender { font-weight: bold; font-size: 12px; color: #128c7e; display: block; margin-bottom: 2px; }
+        .time { font-size: 10px; color: #999; display: block; margin-top: 4px; text-align: right; }
+        #input-area { background: #f0f0f0; padding: 10px; display: flex; gap: 10px; align-items: center; }
+        input { flex: 1; padding: 12px; border: none; border-radius: 25px; outline: none; }
+        button { background: #075e54; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
+        #status { font-size: 12px; color: #ffd700; margin-top: 5px; }
+    </style>
 </head>
 <body>
 
-<h2>Minimal P2P Connection Demo</h2>
-
-<div id="id-section">
-  <p>Your Browser ID: <span id="my-id"></span></p>
+<div id="header">
+    <div style="font-size: 18px; font-weight: bold;">P2P গ্রুপ চ্যাট</div>
+    <div id="status">সার্ভারে কানেক্ট হচ্ছে...</div>
 </div>
 
-<div id="connect-section">
-  <p>Paste other Browser ID to connect:</p>
-  <input type="text" id="peer-id" placeholder="Other Browser ID">
-  <button id="connect-btn">Connect</button>
-  <p id="connect-status"></p>
-</div>
+<div id="chat-container"></div>
 
-<div id="username-section">
-  <p>Enter your Username:</p>
-  <input type="text" id="username" placeholder="Your username">
-  <button id="username-btn">Submit</button>
-</div>
-
-<div id="network-page">
-  <h3>Connected Devices: <span id="connected-count">0</span></h3>
-  <p>Welcome, <span id="display-username"></span>!</p>
-  <p>Network is ready.</p>
+<div id="input-area">
+    <input type="text" id="message-input" placeholder="মেসেজ লিখুন...">
+    <button onclick="sendMessage()">পাঠান</button>
 </div>
 
 <script>
-// Generate a unique ID for this browser (persistent using localStorage)
-let myID = localStorage.getItem('myID');
-if (!myID) {
-  myID = 'ID-' + Math.random().toString(36).substr(2, 9);
-  localStorage.setItem('myID', myID);
-}
-document.getElementById('my-id').textContent = myID;
+    // ১. URL থেকে রুম আইডি এবং ইউজার নেম নেওয়া
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomID = urlParams.get('room') || 'default-room-123';
+    let myName = localStorage.getItem('p2p_name');
 
-// Load saved username if exists
-let savedUsername = localStorage.getItem('username');
+    if (!myName) {
+        myName = prompt("আপনার নাম লিখুন:") || "অচেনা বন্ধু";
+        localStorage.setItem('p2p_name', myName);
+    }
 
-// Minimal peer list to simulate network
-let peers = [];
-if (savedUsername) {
-  document.getElementById('username-section').style.display = 'none';
-  showNetworkPage();
-}
+    // ২. PeerJS সেটআপ (রুম আইডি কে প্রিফিক্স হিসেবে ব্যবহার করা)
+    const peer = new Peer(roomID + '-' + Math.floor(Math.random() * 1000)); 
+    let connections = [];
+    let chatHistory = JSON.parse(localStorage.getItem('p2p_history_' + roomID)) || [];
 
-// Connect button
-document.getElementById('connect-btn').onclick = function() {
-  const peerID = document.getElementById('peer-id').value.trim();
-  if (peerID && !peers.includes(peerID) && peerID !== myID) {
-    peers.push(peerID);
-    document.getElementById('connect-status').textContent = 'Connected to ' + peerID;
-    updateConnectedCount();
-    checkReady();
-  } else {
-    alert('Invalid or duplicate ID');
-  }
-};
+    peer.on('open', (id) => {
+        document.getElementById('status').innerText = "রুম: " + roomID + " (অনলাইন)";
+        displayMessages();
+        
+        // অটোমেটিক অন্যদের খুঁজে বের করার চেষ্টা (একটি সিম্পল মেকানিজম)
+        // নোট: রিয়েলিস্টিকলি এটি সিগনালিং ছাড়া কঠিন, তবে আমরা আগের ইউজারদের লিস্ট দিয়ে ট্রাই করতে পারি
+        // এখানে আমরা একটি 'Lobby' আইডি ব্যবহার করে কানেক্ট হওয়ার চেষ্টা করবো
+        console.log("My ID:", id);
+    });
 
-// Username submit
-document.getElementById('username-btn').onclick = function() {
-  const username = document.getElementById('username').value.trim();
-  if (username) {
-    localStorage.setItem('username', username);
-    showNetworkPage();
-  } else {
-    alert('Enter a valid username');
-  }
-};
+    // ৩. কেউ মেসেজ পাঠালে রিসিভ করা
+    peer.on('connection', (conn) => {
+        setupConnection(conn);
+    });
 
-function updateConnectedCount() {
-  document.getElementById('connected-count').textContent = peers.length + 1; // include self
-}
+    // ৪. ইনকামিং কানেকশন হ্যান্ডেল করা
+    function setupConnection(conn) {
+        conn.on('open', () => {
+            if (!connections.find(c => c.peer === conn.peer)) {
+                connections.push(conn);
+            }
+        });
+        conn.on('data', (data) => {
+            saveAndDisplay(data, 'others');
+        });
+    }
 
-function checkReady() {
-  if (peers.length >= 1 && localStorage.getItem('username')) {
-    showNetworkPage();
-  }
-}
+    // ৫. ম্যানুয়ালি কানেক্ট করার ফাংশন (যদি অটো না হয়)
+    // গিটহাবে ব্যবহারের সময় আপনি বন্ধুর আইডি নিয়ে এখানে কানেক্ট করতে পারেন
+    window.connectToId = function(id) {
+        const conn = peer.connect(id);
+        setupConnection(conn);
+    };
 
-function showNetworkPage() {
-  document.getElementById('username-section').style.display = 'none';
-  document.getElementById('connect-section').style.display = 'none';
-  document.getElementById('network-page').style.display = 'block';
-  document.getElementById('display-username').textContent = localStorage.getItem('username');
-  updateConnectedCount();
-}
+    function sendMessage() {
+        const input = document.getElementById('message-input');
+        const text = input.value.trim();
+        if (!text) return;
+
+        const msgObj = {
+            sender: myName,
+            id: peer.id,
+            text: text,
+            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        };
+
+        // সবার কাছে পাঠানো
+        connections.forEach(conn => conn.send(msgObj));
+
+        saveAndDisplay(msgObj, 'mine');
+        input.value = '';
+    }
+
+    function saveAndDisplay(msg, type) {
+        const msgType = (msg.id === peer.id) ? 'mine' : 'others';
+        chatHistory.push({...msg, type: msgType});
+        localStorage.setItem('p2p_history_' + roomID, JSON.stringify(chatHistory));
+        renderMsg(msg, msgType);
+    }
+
+    function renderMsg(msg, type) {
+        const container = document.getElementById('chat-container');
+        const html = `
+            <div class="msg ${type}">
+                <span class="sender">${msg.sender}</span>
+                ${msg.text}
+                <span class="time">${msg.time}</span>
+            </div>
+        `;
+        container.innerHTML += html;
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function displayMessages() {
+        document.getElementById('chat-container').innerHTML = '';
+        chatHistory.forEach(m => renderMsg(m, m.type));
+    }
+
+    // ব্রাউজারে অন্য ট্যাব থেকে আইডি পেলে কানেক্ট করার জন্য (সিম্পল প্রম্পট)
+    setTimeout(() => {
+        if(connections.length === 0) {
+            let partnerId = prompt("আপনার বন্ধুর আইডি দিন (নিচে স্ট্যাটাসে আইডি পাবেন):");
+            if(partnerId) connectToId(partnerId);
+        }
+    }, 5000);
+
 </script>
-
 </body>
 </html>

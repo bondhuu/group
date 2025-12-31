@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>P2P Pro Fixed</title>
+    <title>P2P প্রো চ্যাট</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -11,68 +11,83 @@
         * { box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* Header & Input Inside */
-        #header { 
-            background: #075e54; color: white; padding: 10px; 
-            display: flex; align-items: center; gap: 8px; flex-shrink: 0;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 100;
-        }
-        #room-title { font-size: 14px; font-weight: bold; max-width: 70px; overflow: hidden; }
-        #input-container { flex: 1; display: flex; background: rgba(255,255,255,0.2); border-radius: 20px; padding: 2px 12px; align-items: center; }
-        #message-input { flex: 1; background: none; border: none; color: white; padding: 8px; outline: none; font-size: 15px; }
-        #message-input::placeholder { color: #ccc; }
-        #send-btn { background: none; border: none; color: #dcf8c6; font-size: 20px; cursor: pointer; }
+        /* হেডার */
+        #header { background: #075e54; color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+        .menu-btn { cursor: pointer; font-size: 24px; padding: 0 5px; }
 
-        /* Chat Container - Newest messages at the TOP */
-        #chat-container { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
-        
-        .msg { max-width: 85%; padding: 8px 12px; border-radius: 12px; font-size: 14px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); word-break: break-all; }
+        /* সাইডবার */
+        #sidebar { position: fixed; right: -280px; top: 0; width: 280px; height: 100%; background: white; box-shadow: -2px 0 5px rgba(0,0,0,0.2); transition: 0.3s; z-index: 100; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        #sidebar.open { right: 0; }
+        .close-btn { align-self: flex-end; cursor: pointer; font-size: 20px; color: #666; }
+        .sidebar-title { font-weight: bold; color: #075e54; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+        .help-text { font-size: 12px; color: #555; line-height: 1.4; background: #f9f9f9; padding: 10px; border-radius: 5px; }
+
+        /* চ্যাট এরিয়া */
+        #chat-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
+        .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; font-size: 14.5px; position: relative; word-wrap: break-word; }
         .mine { align-self: flex-end; background: #dcf8c6; border-top-right-radius: 0; }
         .others { align-self: flex-start; background: white; border-top-left-radius: 0; }
-        .sender { font-size: 11px; font-weight: bold; color: #128c7e; display: block; margin-bottom: 2px; }
-        .time { font-size: 10px; color: #888; display: block; margin-top: 4px; text-align: right; }
+        .sender-name { font-size: 11px; font-weight: bold; color: #128c7e; display: block; margin-bottom: 2px; }
+        .time { font-size: 10px; color: #888; text-align: right; display: block; margin-top: 4px; }
 
-        /* Setup Box */
-        #setup-box { position: fixed; inset: 0; background: #075e54; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; gap: 15px; padding: 20px; }
-        #setup-box input { width: 100%; max-width: 280px; padding: 12px; border-radius: 25px; border: none; text-align: center; font-size: 16px; outline: none; }
-        #setup-box button { width: 100%; max-width: 280px; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; }
+        /* ইনপুট বক্স */
+        #input-area { background: #f0f0f0; padding: 10px; display: flex; gap: 8px; }
+        #message-input { flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #ddd; outline: none; }
+        
+        /* লগইন/সেটআপ */
+        #setup-box { position: fixed; inset: 0; background: #075e54; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 200; gap: 10px; padding: 20px; }
+        #setup-box input { width: 100%; max-width: 300px; padding: 12px; border-radius: 8px; border: none; }
+        #setup-box button { width: 100%; max-width: 300px; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
 
-        #sidebar { position: fixed; right: -250px; top: 0; width: 250px; height: 100%; background: white; z-index: 1500; transition: 0.3s; padding: 20px; box-shadow: -2px 0 10px rgba(0,0,0,0.2); }
-        #sidebar.open { right: 0; }
+        /* ম্যানুয়াল কানেক্ট ফর্ম */
+        .manual-box { display: flex; flex-direction: column; gap: 8px; }
+        .small-input { padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 12px; }
+        .action-btn { padding: 8px; background: #075e54; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; }
     </style>
 </head>
 <body>
 
 <div id="setup-box">
-    <h2>Secure P2P Chat</h2>
-    <input type="text" id="user-name" placeholder="Your Name">
-    <input type="text" id="room-pass" placeholder="Room Password">
-    <button onclick="startChat()">Enter Chat</button>
+    <h2>P2P সিকিউর চ্যাট</h2>
+    <input type="text" id="user-name" placeholder="আপনার নাম">
+    <input type="text" id="room-pass" placeholder="রুম পাসওয়ার্ড">
+    <button onclick="startChat()">প্রবেশ করুন</button>
 </div>
 
 <div id="header">
-    <div id="room-title">Room</div>
-    <div id="input-container">
-        <input type="text" id="message-input" placeholder="Message..." autocomplete="off">
-        <button id="send-btn" onclick="sendMessage()">➔</button>
-    </div>
-    <div onclick="toggleSidebar()" style="cursor:pointer; font-size:22px; padding:0 5px;">⋮</div>
+    <div id="room-title" style="font-weight: bold;">গ্রুপ চ্যাট</div>
+    <div class="menu-btn" onclick="toggleSidebar()">⋮</div>
 </div>
 
 <div id="sidebar">
-    <div onclick="toggleSidebar()" style="cursor:pointer; text-align:right">✖</div>
-    <h4 style="color:#075e54">Manual Sync</h4>
-    <p style="font-size:10px; color:#666">My ID: <span id="my-id-label" style="word-break:break-all; font-weight:bold;"></span></p>
-    <button onclick="copyMyId()" style="width:100%; font-size:12px; padding:5px;">Copy ID</button>
-    <hr>
-    <input type="text" id="peer-id-input" placeholder="Friend's ID" style="width:100%; padding:8px; margin-bottom:5px;">
-    <button onclick="manualConnect()" style="width:100%; padding:8px; background:#075e54; color:white; border:none; cursor:pointer">Connect</button>
+    <div class="close-btn" onclick="toggleSidebar()">✖</div>
+    <div class="sidebar-title">ম্যানুয়াল কানেক্ট</div>
+    <div class="help-text">
+        ফায়ারবেস কাজ না করলে এটি ব্যবহার করুন:<br>
+        ১. আপনার আইডিটি কপি করে বন্ধুকে পাঠান।<br>
+        ২. বন্ধুর আইডি নিচে পেস্ট করে কানেক্ট দিন।
+    </div>
+    <div class="manual-box">
+        <label style="font-size: 11px;">আপনার আইডি:</label>
+        <input type="text" id="my-id-val" class="small-input" readonly>
+        <button class="action-btn" onclick="copyMyId()">আইডি কপি করুন</button>
+    </div>
+    <hr style="width: 100%; border: 0; border-top: 1px solid #eee;">
+    <div class="manual-box">
+        <label style="font-size: 11px;">বন্ধুর আইডি পেস্ট করুন:</label>
+        <input type="text" id="peer-id-input" class="small-input" placeholder="ID এখানে দিন">
+        <button class="action-btn" style="background: #128c7e;" onclick="manualConnect()">কানেক্ট করুন</button>
+    </div>
 </div>
 
 <div id="chat-container"></div>
 
+<div id="input-area">
+    <input type="text" id="message-input" placeholder="মেসেজ লিখুন..." autocomplete="off">
+    <button onclick="sendMessage()" style="background:none; border:none; font-size:24px; cursor:pointer;">➔</button>
+</div>
+
 <script>
-    // Firebase Config
     const firebaseConfig = {
         apiKey: "AIzaSyDZ0i_k2IFXOcXeGwrD2tZWQJvR0_Ztgd8",
         authDomain: "group-e14e4.firebaseapp.com",
@@ -86,7 +101,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let peer, myName, roomPass;
+    let peer, myName, roomPass, myFullId;
     let connections = [];
     let chatHistory = [];
 
@@ -95,19 +110,19 @@
     function startChat() {
         myName = document.getElementById('user-name').value.trim();
         roomPass = document.getElementById('room-pass').value.trim();
-        if(!myName || !roomPass) return alert("Fill all fields");
+        if(!myName || !roomPass) return alert("তথ্য পূরণ করুন");
 
-        // Load room specific history
-        chatHistory = JSON.parse(localStorage.getItem('p2p_history_' + roomPass)) || [];
+        chatHistory = JSON.parse(localStorage.getItem('p2p_v4_' + roomPass)) || [];
         displayMessages();
 
         peer = new Peer();
         peer.on('open', (id) => {
-            document.getElementById('my-id-label').innerText = id;
+            myFullId = id;
+            document.getElementById('my-id-val').value = id;
             document.getElementById('setup-box').style.display = 'none';
-            document.getElementById('room-title').innerText = roomPass;
+            document.getElementById('room-title').innerText = "রুম: " + roomPass;
             
-            // Register and find peers
+            // ফায়ারবেস অটো-সিগনালিং
             const roomRef = db.ref('rooms/' + roomPass);
             roomRef.push({ id: id, name: myName });
             roomRef.once('value', s => s.forEach(c => { if(c.val().id !== id) connect(c.val().id); }));
@@ -120,100 +135,66 @@
         if(!connections.find(c => c.peer === id)) setupConnection(peer.connect(id));
     }
 
+    function manualConnect() {
+        const id = document.getElementById('peer-id-input').value.trim();
+        if(id) { connect(id); toggleSidebar(); alert("কানেকশন রিকোয়েস্ট পাঠানো হয়েছে!"); }
+    }
+
+    function copyMyId() {
+        const copyText = document.getElementById("my-id-val");
+        copyText.select();
+        document.execCommand("copy");
+        alert("আপনার আইডি কপি হয়েছে!");
+    }
+
     function setupConnection(conn) {
         conn.on('open', () => {
             if(!connections.find(c => c.peer === conn.peer)) connections.push(conn);
-            // Ask for history immediately
             conn.send({ type: 'SYNC_REQ' });
         });
         conn.on('data', data => {
             if(data.type === 'SYNC_REQ') {
-                conn.send({ type: 'SYNC_DATA', history: chatHistory });
+                if(chatHistory.length > 0) conn.send({ type: 'SYNC_DATA', data: chatHistory });
             } else if(data.type === 'SYNC_DATA') {
-                mergeHistory(data.history);
-            } else {
-                receiveMessage(data);
-            }
+                if(data.data.length > chatHistory.length) {
+                    chatHistory = data.data;
+                    localStorage.setItem('p2p_v4_' + roomPass, JSON.stringify(chatHistory));
+                    displayMessages();
+                }
+            } else { saveAndDisplay(data, 'others'); }
         });
     }
 
     function sendMessage() {
         const input = document.getElementById('message-input');
-        const text = input.value.trim();
-        if(!text) return;
-
-        const msg = { 
-            id: Date.now() + Math.random(), 
-            sender: myName, 
-            text: text, 
-            time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) 
-        };
-
+        if(!input.value.trim()) return;
+        const msg = { sender: myName, text: input.value, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) };
         connections.forEach(c => c.send(msg));
-        saveAndRender(msg, 'mine');
+        saveAndDisplay(msg, 'mine');
         input.value = '';
     }
 
-    function receiveMessage(msg) {
-        if(!chatHistory.find(m => m.id === msg.id)) {
-            saveAndRender(msg, 'others');
-        }
+    function saveAndDisplay(msg, type) {
+        chatHistory.push({...msg, type});
+        localStorage.setItem('p2p_v4_' + roomPass, JSON.stringify(chatHistory));
+        renderMsg(msg, type);
     }
 
-    function mergeHistory(remoteHistory) {
-        let updated = false;
-        remoteHistory.forEach(msg => {
-            if(!chatHistory.find(m => m.id === msg.id)) {
-                chatHistory.push(msg);
-                updated = true;
-            }
-        });
-        if(updated) {
-            chatHistory.sort((a, b) => a.id - b.id);
-            localStorage.setItem('p2p_history_' + roomPass, JSON.stringify(chatHistory));
-            displayMessages();
-        }
-    }
-
-    function saveAndRender(msg, type) {
-        msg.type = type;
-        chatHistory.push(msg);
-        localStorage.setItem('p2p_history_' + roomPass, JSON.stringify(chatHistory));
-        renderMsg(msg);
-    }
-
-    function renderMsg(msg) {
+    function renderMsg(msg, type) {
         const container = document.getElementById('chat-container');
         const div = document.createElement('div');
-        div.className = `msg ${msg.type || 'others'}`;
-        
-        div.innerHTML = `
-            <span class="sender">${msg.sender}</span>
-            <span class="txt"></span>
-            <span class="time">${msg.time}</span>
-        `;
-        div.querySelector('.txt').innerText = msg.text;
-        
-        // This puts NEW messages at the TOP
-        container.prepend(div);
+        div.className = `msg ${type}`;
+        div.innerHTML = `<span class="sender-name"></span><span class="text-content"></span><span class="time"></span>`;
+        div.querySelector('.sender-name').innerText = msg.sender;
+        div.querySelector('.text-content').innerText = msg.text;
+        div.querySelector('.time').innerText = msg.time;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
     }
 
     function displayMessages() {
-        const container = document.getElementById('chat-container');
-        container.innerHTML = '';
-        // Sort history by time and show newest at top
-        const sorted = [...chatHistory].sort((a,b) => a.id - b.id);
-        sorted.forEach(m => renderMsg(m));
-    }
-
-    function copyMyId() {
-        navigator.clipboard.writeText(document.getElementById('my-id-label').innerText);
-        alert("ID Copied");
-    }
-
-    function manualConnect() {
-        const id = document.getElementById('peer-id-input').value.trim();
-        if(id) { connect(id); toggleSidebar(); }
+        document.getElementById('chat-container').innerHTML = '';
+        chatHistory.forEach(m => renderMsg(m, m.type || 'others'));
     }
 
     document.getElementById('message-input').addEventListener('keypress', e => { if(e.key === 'Enter') sendMessage(); });

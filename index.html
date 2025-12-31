@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Secure Distributed P2P Chat</title>
+    <title>Secure P2P Chat - Newest First</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -11,7 +11,6 @@
         * { box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* Header style based on your original look */
         #header { 
             background: #075e54; color: white; padding: 10px; 
             display: flex; align-items: center; gap: 8px; flex-shrink: 0;
@@ -23,7 +22,7 @@
         #message-input::placeholder { color: #ccc; }
         #send-btn { background: none; border: none; color: #dcf8c6; font-size: 20px; cursor: pointer; }
 
-        /* Chat area: Messages appear at the bottom and scroll up like original */
+        /* চ্যাট এরিয়া: নতুন মেসেজ উপরে দেখানোর জন্য column-reverse ব্যবহার করা হয়নি, লজিক দিয়ে ঠিক করা হয়েছে */
         #chat-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
         
         .msg { max-width: 80%; padding: 8px 12px; border-radius: 10px; font-size: 14px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); word-break: break-all; }
@@ -34,7 +33,6 @@
         .user-tag { color: #888; font-size: 9px; font-weight: normal; }
         .time { font-size: 10px; color: #888; display: block; margin-top: 4px; text-align: right; }
 
-        /* Login Screen */
         #setup-box { position: fixed; inset: 0; background: #075e54; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; gap: 12px; padding: 25px; }
         #setup-box input { width: 100%; max-width: 300px; padding: 12px; border-radius: 25px; border: none; text-align: center; font-size: 16px; outline: none; }
         #setup-box button { width: 100%; max-width: 300px; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; font-size: 16px; }
@@ -54,7 +52,7 @@
     </div>
     
     <div id="key-alert">
-        <p style="font-size: 14px; margin-bottom: 10px;">এটি আপনার <b>প্রাইভেট কি</b>। এটি সেভ করে রাখুন। অন্য ফোনে লগইন করতে এটি লাগবে:</p>
+        <p style="font-size: 14px; margin-bottom: 10px;">আপনার <b>প্রাইভেট কি</b> সেভ করে রাখুন:</p>
         <div id="generated-key" style="background: #f0f0f0; padding: 10px; border-radius: 5px; font-weight: bold; color: #075e54; margin-bottom: 15px; word-break: break-all;"></div>
         <button onclick="proceedToChat()" style="background: #075e54; width: 100%;">আমি সেভ করেছি</button>
     </div>
@@ -108,14 +106,12 @@
         document.getElementById('setup-box').style.display = 'none';
         document.getElementById('room-info').innerText = "রুম: " + roomPass;
 
-        // লোড চ্যাট হিস্ট্রি
-        chatHistory = JSON.parse(localStorage.getItem('chat_v11_' + roomPass)) || [];
+        chatHistory = JSON.parse(localStorage.getItem('chat_v12_' + roomPass)) || [];
         renderAllMessages();
 
         peer = new Peer();
         peer.on('open', (id) => {
             const roomRef = db.ref('online_users/' + roomPass).child(id);
-            // সার্ভারে শুধু সাময়িক উপস্থিতি রাখা (পরিচয় নয়)
             roomRef.set({ id, name: myName, tag: myTag });
             roomRef.onDisconnect().remove();
 
@@ -180,24 +176,20 @@
             }
         });
         if(updated) {
-            chatHistory.sort((a,b) => a.mid - b.mid);
-            localStorage.setItem('chat_v11_' + roomPass, JSON.stringify(chatHistory));
+            chatHistory.sort((a,b) => b.mid - a.mid); // বড় থেকে ছোট (নতুন আগে)
+            localStorage.setItem('chat_v12_' + roomPass, JSON.stringify(chatHistory));
             renderAllMessages();
         }
     }
 
     function saveAndRender(msg, type) {
         msg.msgType = type;
-        chatHistory.push(msg);
-        localStorage.setItem('chat_v11_' + roomPass, JSON.stringify(chatHistory));
-        appendMsg(msg);
-        
-        // Auto scroll to bottom
-        const container = document.getElementById('chat-container');
-        container.scrollTop = container.scrollHeight;
+        chatHistory.unshift(msg); // অ্যারের শুরুতে যোগ করা (নতুন মেসেজ আগে)
+        localStorage.setItem('chat_v12_' + roomPass, JSON.stringify(chatHistory));
+        appendMsgToTop(msg);
     }
 
-    function appendMsg(msg) {
+    function appendMsgToTop(msg) {
         const container = document.getElementById('chat-container');
         const div = document.createElement('div');
         div.className = `msg ${msg.msgType || 'others'}`;
@@ -207,14 +199,25 @@
             <span class="time">${msg.time}</span>
         `;
         div.querySelector('.txt').innerText = msg.text;
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
+        container.prepend(div); // সবার উপরে যোগ করা
+        container.scrollTop = 0; // স্ক্রল উপরে নিয়ে যাওয়া যাতে নতুন মেসেজ দেখা যায়
     }
 
     function renderAllMessages() {
         const container = document.getElementById('chat-container');
         container.innerHTML = '';
-        [...chatHistory].sort((a,b) => a.mid - b.mid).forEach(appendMsg);
+        // হিস্ট্রি থেকে রেন্ডার করার সময়ও নতুনগুলো আগে দেখাবে
+        [...chatHistory].sort((a,b) => b.mid - a.mid).forEach(m => {
+            const div = document.createElement('div');
+            div.className = `msg ${m.msgType || 'others'}`;
+            div.innerHTML = `
+                <span class="sender">${m.sender} <span class="user-tag">${m.tag}</span></span>
+                <span class="txt"></span>
+                <span class="time">${m.time}</span>
+            `;
+            div.querySelector('.txt').innerText = m.text;
+            container.appendChild(div);
+        });
     }
 
     document.getElementById('message-input').addEventListener('keypress', e => { if(e.key === 'Enter') sendMessage(); });

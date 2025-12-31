@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>P2P Secure Sync Chat</title>
+    <title>P2P Name-Locked Chat</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -11,28 +11,20 @@
         * { box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* Minimalist Header with Integrated Input */
-        #header { 
-            background: #075e54; color: white; padding: 10px; 
-            display: flex; align-items: center; gap: 8px; flex-shrink: 0;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 100;
-        }
+        #header { background: #075e54; color: white; padding: 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 100; }
         #room-info { font-size: 14px; font-weight: bold; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         #input-container { flex: 1; display: flex; background: rgba(255,255,255,0.2); border-radius: 20px; padding: 2px 12px; align-items: center; }
         #message-input { flex: 1; background: none; border: none; color: white; padding: 8px; outline: none; font-size: 15px; }
         #message-input::placeholder { color: #ccc; }
         #send-btn { background: none; border: none; color: #dcf8c6; font-size: 20px; cursor: pointer; }
 
-        /* Chat Container - Newest messages at the TOP */
         #chat-container { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
-        
         .msg { max-width: 85%; padding: 8px 12px; border-radius: 12px; font-size: 14px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); word-break: break-all; }
         .mine { align-self: flex-end; background: #dcf8c6; border-top-right-radius: 0; }
         .others { align-self: flex-start; background: white; border-top-left-radius: 0; }
         .sender { font-size: 11px; font-weight: bold; color: #128c7e; display: block; margin-bottom: 2px; }
         .time { font-size: 10px; color: #888; display: block; margin-top: 4px; text-align: right; }
 
-        /* Setup Box */
         #setup-box { position: fixed; inset: 0; background: #075e54; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; gap: 15px; padding: 20px; }
         #setup-box input { width: 100%; max-width: 280px; padding: 12px; border-radius: 25px; border: none; text-align: center; font-size: 16px; outline: none; color: #333; }
         #setup-box button { width: 100%; max-width: 280px; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; }
@@ -44,30 +36,26 @@
 <body>
 
 <div id="setup-box">
-    <h2>Secure Chat Login</h2>
-    <input type="text" id="user-name" placeholder="Your Name">
+    <h2>Secure Login</h2>
+    <input type="text" id="user-name" placeholder="Claim a Unique Name">
     <input type="text" id="room-pass" placeholder="Room Password">
-    <button onclick="startChat()">Join Room</button>
+    <button id="login-btn" onclick="startChat()">Enter Secure Room</button>
 </div>
 
 <div id="header">
     <div id="room-info">Room</div>
     <div id="input-container">
-        <input type="text" id="message-input" placeholder="Type message..." autocomplete="off">
+        <input type="text" id="message-input" placeholder="Type..." autocomplete="off">
         <button id="send-btn" onclick="sendMessage()">➔</button>
     </div>
-    <div onclick="toggleSidebar()" style="cursor:pointer; font-size:22px; padding:0 5px;">⋮</div>
+    <div onclick="toggleSidebar()" style="cursor:pointer; font-size:22px;">⋮</div>
 </div>
 
 <div id="sidebar">
     <div onclick="toggleSidebar()" style="cursor:pointer; text-align:right">✕</div>
-    <h4 style="color:#075e54">Connection Help</h4>
-    <p style="font-size:10px; color:#666">If auto-sync fails, use manual connection.</p>
-    <p style="font-size:10px; color:#333; font-weight:bold;">My ID: <span id="my-id-label" style="word-break:break-all;">...</span></p>
-    <button onclick="copyMyId()" style="width:100%; font-size:11px; padding:5px;">Copy My ID</button>
-    <hr>
-    <input type="text" id="peer-id-input" placeholder="Partner's ID" style="width:100%; padding:8px; margin-bottom:5px; border:1px solid #ddd; border-radius:5px;">
-    <button onclick="manualConnect()" style="width:100%; padding:8px; background:#075e54; color:white; border:none; cursor:pointer; border-radius:5px;">Connect Manually</button>
+    <h4 style="color:#075e54">Manual Sync</h4>
+    <p style="font-size:10px; font-weight:bold;">My ID: <span id="my-id-label" style="word-break:break-all;">...</span></p>
+    <button onclick="copyMyId()" style="width:100%; font-size:11px; padding:5px;">Copy ID</button>
 </div>
 
 <div id="chat-container"></div>
@@ -92,13 +80,47 @@
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-    function startChat() {
+    async function startChat() {
         myName = document.getElementById('user-name').value.trim();
         roomPass = document.getElementById('room-pass').value.trim();
-        if(!myName || !roomPass) return alert("Please enter Name and Password");
+        const loginBtn = document.getElementById('login-btn');
 
-        // History key is room specific to ensure sync works for any username in that room
-        chatHistory = JSON.parse(localStorage.getItem('p2p_history_v6_' + roomPass)) || [];
+        if(!myName || !roomPass) return alert("Fill all fields");
+        
+        loginBtn.disabled = true;
+        loginBtn.innerText = "Verifying Name...";
+
+        // --- GLOBAL NAME LOCK LOGIC ---
+        // 1. Check local storage first
+        chatHistory = JSON.parse(localStorage.getItem('p2p_history_v7_' + roomPass)) || [];
+        const isNameInHistory = chatHistory.some(m => m.sender.toLowerCase() === myName.toLowerCase());
+        
+        // 2. Check Firebase permanent record
+        const nameRecordRef = db.ref('rooms/' + roomPass + '/registered_names');
+        const snapshot = await nameRecordRef.once('value');
+        let isNameRegistered = false;
+
+        snapshot.forEach(child => {
+            if(child.val().toLowerCase() === myName.toLowerCase()) isNameRegistered = true;
+        });
+
+        if(isNameRegistered || isNameInHistory) {
+            // Check if it's the SAME person (only if you want to allow re-entry on same device)
+            const savedName = localStorage.getItem('my_saved_name_' + roomPass);
+            if(savedName !== myName) {
+                alert("ACCESS DENIED: This username is permanently locked by another user.");
+                loginBtn.disabled = false;
+                loginBtn.innerText = "Enter Secure Room";
+                return;
+            }
+        }
+
+        // Lock this name for this device/session
+        localStorage.setItem('my_saved_name_' + roomPass, myName);
+        if(!isNameRegistered) {
+            nameRecordRef.push(myName); // Permanently lock in Firebase
+        }
+
         displayMessages();
 
         peer = new Peer();
@@ -107,12 +129,12 @@
             document.getElementById('setup-box').style.display = 'none';
             document.getElementById('room-info').innerText = roomPass;
             
-            // Firebase Signaling
-            const roomRef = db.ref('rooms/' + roomPass);
-            roomRef.push({ id: id, name: myName });
+            const activeRef = db.ref('rooms/' + roomPass + '/active_users');
+            const myStatusRef = activeRef.push({ id: id, name: myName });
+            myStatusRef.onDisconnect().remove();
             
-            roomRef.once('value', s => s.forEach(c => { if(c.val().id !== id) connect(c.val().id); }));
-            roomRef.on('child_added', s => { if(s.val().id !== id) connect(s.val().id); });
+            activeRef.once('value', s => s.forEach(c => { if(c.val().id !== id) connect(c.val().id); }));
+            activeRef.on('child_added', s => { if(s.val().id !== id) connect(s.val().id); });
         });
         peer.on('connection', setupConnection);
     }
@@ -124,18 +146,14 @@
     function setupConnection(conn) {
         conn.on('open', () => {
             if(!connections.find(c => c.peer === conn.peer)) connections.push(conn);
-            // Crucial: New member requests history immediately
             conn.send({ type: 'SYNC_REQ' });
         });
         conn.on('data', data => {
             if(data.type === 'SYNC_REQ') {
-                // Sending full history to the new member
                 conn.send({ type: 'SYNC_DATA', history: chatHistory });
             } else if(data.type === 'SYNC_DATA') {
-                // Received history from an existing member
                 mergeHistory(data.history);
             } else {
-                // Normal incoming message
                 receiveNewMessage(data);
             }
         });
@@ -143,41 +161,28 @@
 
     function sendMessage() {
         const input = document.getElementById('message-input');
-        const text = input.value.trim();
-        if(!text) return;
-
-        const msg = { 
-            mid: Date.now() + Math.random(), // Unique ID for each message
-            sender: myName, 
-            text: text, 
-            time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) 
-        };
-
+        if(!input.value.trim()) return;
+        const msg = { mid: Date.now() + Math.random(), sender: myName, text: input.value, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) };
         connections.forEach(c => c.send(msg));
         saveAndRender(msg, 'mine');
         input.value = '';
     }
 
     function receiveNewMessage(msg) {
-        // Prevent duplicate messages
-        if(!chatHistory.find(m => m.mid === msg.mid)) {
-            saveAndRender(msg, 'others');
-        }
+        if(!chatHistory.find(m => m.mid === msg.mid)) saveAndRender(msg, 'others');
     }
 
     function mergeHistory(remoteHistory) {
-        let isUpdated = false;
-        remoteHistory.forEach(remoteMsg => {
-            if(!chatHistory.find(localMsg => localMsg.mid === remoteMsg.mid)) {
-                chatHistory.push(remoteMsg);
-                isUpdated = true;
+        let updated = false;
+        remoteHistory.forEach(rMsg => {
+            if(!chatHistory.find(lMsg => lMsg.mid === rMsg.mid)) {
+                chatHistory.push(rMsg);
+                updated = true;
             }
         });
-
-        if(isUpdated) {
-            // Sort history by time/ID
+        if(updated) {
             chatHistory.sort((a, b) => a.mid - b.mid);
-            localStorage.setItem('p2p_history_v6_' + roomPass, JSON.stringify(chatHistory));
+            localStorage.setItem('p2p_history_v7_' + roomPass, JSON.stringify(chatHistory));
             displayMessages();
         }
     }
@@ -185,7 +190,7 @@
     function saveAndRender(msg, type) {
         if(type) msg.type = type;
         chatHistory.push(msg);
-        localStorage.setItem('p2p_history_v6_' + roomPass, JSON.stringify(chatHistory));
+        localStorage.setItem('p2p_history_v7_' + roomPass, JSON.stringify(chatHistory));
         renderMsg(msg);
     }
 
@@ -193,34 +198,20 @@
         const container = document.getElementById('chat-container');
         const div = document.createElement('div');
         div.className = `msg ${msg.type || 'others'}`;
-        
-        div.innerHTML = `
-            <span class="sender">${msg.sender}</span>
-            <span class="txt"></span>
-            <span class="time">${msg.time}</span>
-        `;
+        div.innerHTML = `<span class="sender">${msg.sender}</span><span class="txt"></span><span class="time">${msg.time}</span>`;
         div.querySelector('.txt').innerText = msg.text;
-        
-        // Adds NEWEST on TOP
         container.prepend(div);
     }
 
     function displayMessages() {
         const container = document.getElementById('chat-container');
         container.innerHTML = '';
-        // Newest on top layout
         [...chatHistory].sort((a,b) => a.mid - b.mid).forEach(m => renderMsg(m));
     }
 
     function copyMyId() {
-        const idText = document.getElementById('my-id-label').innerText;
-        navigator.clipboard.writeText(idText);
-        alert("ID Copied!");
-    }
-
-    function manualConnect() {
-        const id = document.getElementById('peer-id-input').value.trim();
-        if(id) { connect(id); toggleSidebar(); alert("Trying to connect..."); }
+        navigator.clipboard.writeText(document.getElementById('my-id-label').innerText);
+        alert("Copied!");
     }
 
     document.getElementById('message-input').addEventListener('keypress', e => { if(e.key === 'Enter') sendMessage(); });

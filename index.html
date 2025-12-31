@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Secure P2P Chat - Multi-Filter</title>
+    <title>Secure P2P - Custom Checklist Mode</title>
     
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -13,6 +13,7 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
+        /* Header */
         #header { 
             background: #075e54; color: white; padding: 10px 12px; 
             display: flex; align-items: center; gap: 8px; flex-shrink: 0;
@@ -22,12 +23,14 @@
         #status-dot { width: 10px; height: 10px; background: #ff4d4d; border-radius: 50%; border: 1px solid white; }
         #room-info { font-size: 13px; flex: 1; font-weight: bold; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
+        /* Input Controls */
         #controls-wrapper { flex: 2; display: flex; align-items: center; gap: 8px; }
         #input-container { flex: 1; display: flex; background: rgba(255,255,255,0.15); border-radius: 20px; padding: 2px 10px; align-items: center; }
         #message-input { flex: 1; background: none; border: none; color: white; padding: 6px; outline: none; font-size: 15px; width: 10px; }
         #send-btn { background: none; border: none; color: #dcf8c6; font-size: 18px; cursor: pointer; }
         #dots-menu-btn { color: white; font-size: 24px; cursor: pointer; padding: 0 5px; }
 
+        /* Chat Display */
         #chat-container { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
         .msg-wrapper { display: flex; width: 100%; margin: 1px 0; }
         .mine-wrapper { justify-content: flex-end; padding-left: 15%; }
@@ -45,24 +48,26 @@
         .time { font-size: 9px; color: #888; text-align: right; margin-top: 3px; }
         .bottom-spacer { height: 65px; width: 100%; flex-shrink: 0; }
 
-        /* Sidebar Fix for Multi-Select */
+        /* Sidebar - Checklist Directory */
         #pin-sidebar { position: fixed; left: -280px; top: 0; bottom: 0; width: 260px; background: #f4f7f6; z-index: 2500; transition: 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.2); padding: 20px; overflow-y: auto; }
         #pin-sidebar.open { left: 0; }
-        .user-item { 
+        .checklist-item { 
             padding: 12px; background: white; margin-bottom: 8px; border-radius: 8px; 
             display: flex; align-items: center; justify-content: space-between; 
             border: 1px solid #ddd; font-weight: bold; color: #075e54;
         }
-        .user-item input[type="checkbox"] { transform: scale(1.3); cursor: pointer; }
+        .checklist-item input { transform: scale(1.3); cursor: pointer; }
+        .remove-user { color: #ff4d4d; font-size: 12px; margin-left: 10px; cursor: pointer; }
 
+        /* Popups */
         #manual-box { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 4000; align-items: center; justify-content: center; padding: 20px; }
-        .modal-inner { background: white; padding: 20px; border-radius: 15px; width: 100%; max-width: 300px; text-align: center; color: #333; }
+        .modal-inner { background: white; padding: 20px; border-radius: 15px; width: 100%; max-width: 300px; text-align: center; }
         .modal-inner input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; }
         .modal-inner button { padding: 10px 20px; background: #075e54; color: white; border: none; border-radius: 8px; }
 
         #setup-box { position: fixed; inset: 0; background: #075e54; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; gap: 12px; padding: 25px; }
         #setup-box input { width: 100%; max-width: 300px; padding: 12px; border-radius: 25px; border: none; text-align: center; }
-        #setup-box button { width: 100%; max-width: 300px; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; }
+        #setup-box button { width: 100%; max-width: 300px; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 25px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -77,19 +82,19 @@
 
 <div id="pin-sidebar">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-        <h3 style="margin:0; color:#075e54;">Filter Users</h3>
+        <h3 style="margin:0; color:#075e54;">My Checklist</h3>
         <span onclick="toggleSidebar()" style="cursor:pointer; font-size:24px;">✕</span>
     </div>
-    <div id="user-list"></div>
+    <div id="checklist-ui"></div>
 </div>
 
 <div id="manual-box">
     <div class="modal-inner">
-        <h4 style="margin:0">Sync Manual</h4>
+        <h4>Sync Manual</h4>
         <input type="text" id="manual-peer-id" placeholder="Enter Peer ID...">
         <button onclick="manualConnect()">Connect</button>
-        <button onclick="toggleManual(false)" style="background:#888; margin-top:5px;">Cancel</button>
-        <div id="my-id-display" style="margin-top:15px; font-size:10px; color:#128c7e; border-top:1px solid #eee; padding-top:10px; word-break: break-all;"></div>
+        <button onclick="toggleManual(false)" style="background:#888; margin-top:5px;">Close</button>
+        <div id="my-id-display" style="margin-top:15px; font-size:10px; color:#128c7e; word-break: break-all;"></div>
     </div>
 </div>
 
@@ -97,7 +102,7 @@
     <span id="menu-btn" onclick="toggleSidebar()">☰</span>
     <div id="room-info">
         <div id="status-dot"></div> 
-        <span id="room-txt">Room: Wait...</span>
+        <span id="room-txt">Connecting...</span>
     </div>
     <div id="controls-wrapper">
         <div id="input-container">
@@ -125,13 +130,16 @@
 
     let peer, myName, roomPass, myTag, myPeerID;
     let connections = {}, chatHistory = [];
-    let onlineUsers = {}; // বর্তমানে যারা কানেক্টেড আছে
-    let activeFilters = new Set(); // সিলেক্ট করা ইউজারদের ট্যাগ এখানে থাকবে
+    
+    // পছন্দের ইউজারদের লিস্ট (Saved Users)
+    let savedChecklist = JSON.parse(localStorage.getItem('my_saved_checklist')) || [];
+    // বর্তমানে ফিল্টার করা ট্যাগগুলো
+    let activeFilters = new Set();
 
     function toggleSidebar() { document.getElementById('pin-sidebar').classList.toggle('open'); }
     function toggleManual(show) { 
         document.getElementById('manual-box').style.display = show ? 'flex' : 'none'; 
-        if(show) document.getElementById('my-id-display').innerText = "Your ID: " + (myPeerID || "Connecting...");
+        if(show) document.getElementById('my-id-display').innerText = "Your ID: " + (myPeerID || "Wait...");
     }
 
     async function startChat() {
@@ -144,8 +152,9 @@
         document.getElementById('setup-box').style.display = 'none';
         document.getElementById('room-txt').innerText = "Room: " + roomPass;
 
-        chatHistory = JSON.parse(localStorage.getItem('chat_vFiltered_'+roomPass)) || [];
+        chatHistory = JSON.parse(localStorage.getItem('chat_vCheck_'+roomPass)) || [];
         renderAll();
+        updateChecklistUI();
 
         peer = new Peer({ config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]}});
         
@@ -156,9 +165,8 @@
             myRef.onDisconnect().remove();
 
             db.ref('p2p_active/'+roomPass).on('value', snap => {
-                onlineUsers = snap.val() || {};
-                updateUserSidebar();
-                for (let k in onlineUsers) {
+                const users = snap.val() || {};
+                for (let k in users) {
                     if (k !== id && !connections[k]) setupConn(peer.connect(k, { reliable: true }));
                 }
             });
@@ -204,7 +212,7 @@
         if(chatHistory.find(m => m.mid === msg.mid)) return;
         msg.msgType = type;
         chatHistory.unshift(msg);
-        localStorage.setItem('chat_vFiltered_'+roomPass, JSON.stringify(chatHistory));
+        localStorage.setItem('chat_vCheck_'+roomPass, JSON.stringify(chatHistory));
         renderAll();
     }
 
@@ -213,7 +221,7 @@
         remote.forEach(r => { if(!chatHistory.find(l => l.mid === r.mid)) { chatHistory.push(r); changed = true; }});
         if(changed) {
             chatHistory.sort((a,b) => b.mid - a.mid);
-            localStorage.setItem('chat_vFiltered_'+roomPass, JSON.stringify(chatHistory));
+            localStorage.setItem('chat_vCheck_'+roomPass, JSON.stringify(chatHistory));
             renderAll();
         }
     }
@@ -222,7 +230,7 @@
         const list = document.getElementById('msg-list');
         list.innerHTML = '';
         
-        // যদি কোনো ফিল্টার সিলেক্ট থাকে তবে ফিল্টার করো, নাহলে সব দেখাও
+        // ফিল্টার লজিক: যদি কোনো টিক চিহ্ন থাকে তবে শুধু তাদের মেসেজ দেখাও
         const displayList = activeFilters.size > 0 
             ? chatHistory.filter(m => activeFilters.has(m.tag)) 
             : chatHistory;
@@ -231,7 +239,7 @@
             const w = document.createElement('div');
             w.className = `msg-wrapper ${m.msgType === 'mine' ? 'mine-wrapper' : 'others-wrapper'}`;
             w.innerHTML = `<div class="msg ${m.msgType}">
-                <span class="sender">${m.sender} <small style="opacity:0.6">${m.tag}</small></span>
+                <span class="sender" onclick="addToChecklist('${m.sender}', '${m.tag}')">${m.sender} <small style="opacity:0.6">${m.tag}</small></span>
                 <div>${escapeHTML(m.text)}</div>
                 <span class="time">${m.time}</span>
             </div>`;
@@ -239,32 +247,56 @@
         });
     }
 
-    // সাইডবারে ইউজার লিস্ট আপডেট করা
-    function updateUserSidebar() {
-        const list = document.getElementById('user-list');
-        list.innerHTML = '';
-        
-        // অনলাইনে থাকা ইউনিক ইউজারদের লিস্ট বের করা
-        let uniqueUsers = {};
-        for(let k in onlineUsers) {
-            let u = onlineUsers[k];
-            if(u.tag !== myTag) uniqueUsers[u.tag] = u.name;
-        }
-
-        for(let tag in uniqueUsers) {
-            const d = document.createElement('div');
-            d.className = 'user-item';
-            d.innerHTML = `
-                <span>${uniqueUsers[tag]} <small style="opacity:0.5; font-size:10px">${tag}</small></span>
-                <input type="checkbox" ${activeFilters.has(tag) ? 'checked' : ''} onchange="handleFilter(this, '${tag}')">
-            `;
-            list.appendChild(d);
+    // কাউকে চেক-লিস্টে অ্যাড করা
+    function addToChecklist(name, tag) {
+        if(tag === myTag) return;
+        if(confirm(`Add ${name} to your personal checklist?`)) {
+            if(!savedChecklist.find(u => u.tag === tag)) {
+                savedChecklist.push({name, tag});
+                localStorage.setItem('my_saved_checklist', JSON.stringify(savedChecklist));
+                updateChecklistUI();
+                alert(`${name} added! Open sidebar to filter.`);
+            }
         }
     }
 
-    function handleFilter(checkbox, tag) {
+    // সাইডবার আপডেট
+    function updateChecklistUI() {
+        const ui = document.getElementById('checklist-ui');
+        ui.innerHTML = '';
+        
+        savedChecklist.forEach((user, index) => {
+            const d = document.createElement('div');
+            d.className = 'checklist-item';
+            d.innerHTML = `
+                <div style="flex:1" onclick="toggleCheck(${index})">
+                    <span>${user.name}</span> <small style="opacity:0.5">${user.tag}</small>
+                </div>
+                <input type="checkbox" id="check-${index}" ${activeFilters.has(user.tag) ? 'checked' : ''} onchange="handleFilterChange(this, '${user.tag}')">
+                <span class="remove-user" onclick="removeFromChecklist(${index})">Delete</span>
+            `;
+            ui.appendChild(d);
+        });
+    }
+
+    function handleFilterChange(checkbox, tag) {
         if(checkbox.checked) activeFilters.add(tag);
         else activeFilters.delete(tag);
+        renderAll();
+    }
+
+    function toggleCheck(index) {
+        const cb = document.getElementById(`check-${index}`);
+        cb.checked = !cb.checked;
+        handleFilterChange(cb, savedChecklist[index].tag);
+    }
+
+    function removeFromChecklist(index) {
+        const tag = savedChecklist[index].tag;
+        activeFilters.delete(tag);
+        savedChecklist.splice(index, 1);
+        localStorage.setItem('my_saved_checklist', JSON.stringify(savedChecklist));
+        updateChecklistUI();
         renderAll();
     }
 

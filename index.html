@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>P2P Name-Locked Chat</title>
+    <title>Trust-Verified P2P Chat</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -22,40 +22,34 @@
         .msg { max-width: 85%; padding: 8px 12px; border-radius: 12px; font-size: 14px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); word-break: break-all; }
         .mine { align-self: flex-end; background: #dcf8c6; border-top-right-radius: 0; }
         .others { align-self: flex-start; background: white; border-top-left-radius: 0; }
-        .sender { font-size: 11px; font-weight: bold; color: #128c7e; display: block; margin-bottom: 2px; }
+        
+        /* Sender Styling with Tag */
+        .sender { font-size: 11px; font-weight: bold; color: #128c7e; display: flex; align-items: center; gap: 3px; margin-bottom: 2px; }
+        .user-tag { color: #888; font-weight: normal; font-size: 10px; } /* The #1234 Tag */
+        .verified-badge { color: #1e90ff; font-size: 12px; }
         .time { font-size: 10px; color: #888; display: block; margin-top: 4px; text-align: right; }
 
         #setup-box { position: fixed; inset: 0; background: #075e54; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; gap: 15px; padding: 20px; }
-        #setup-box input { width: 100%; max-width: 280px; padding: 12px; border-radius: 25px; border: none; text-align: center; font-size: 16px; outline: none; color: #333; }
+        #setup-box input { width: 100%; max-width: 280px; padding: 12px; border-radius: 25px; border: none; text-align: center; font-size: 16px; outline: none; }
         #setup-box button { width: 100%; max-width: 280px; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; }
-
-        #sidebar { position: fixed; right: -260px; top: 0; width: 250px; height: 100%; background: white; z-index: 1500; transition: 0.3s; padding: 20px; box-shadow: -2px 0 10px rgba(0,0,0,0.2); }
-        #sidebar.open { right: 0; }
     </style>
 </head>
 <body>
 
 <div id="setup-box">
     <h2>Secure Login</h2>
-    <input type="text" id="user-name" placeholder="Claim a Unique Name">
+    <input type="text" id="user-name" placeholder="Name (e.g. Abir)">
     <input type="text" id="room-pass" placeholder="Room Password">
-    <button id="login-btn" onclick="startChat()">Enter Secure Room</button>
+    <button onclick="startChat()">Enter Room</button>
 </div>
 
 <div id="header">
     <div id="room-info">Room</div>
     <div id="input-container">
-        <input type="text" id="message-input" placeholder="Type..." autocomplete="off">
+        <input type="text" id="message-input" placeholder="Type message..." autocomplete="off">
         <button id="send-btn" onclick="sendMessage()">➔</button>
     </div>
-    <div onclick="toggleSidebar()" style="cursor:pointer; font-size:22px;">⋮</div>
-</div>
-
-<div id="sidebar">
-    <div onclick="toggleSidebar()" style="cursor:pointer; text-align:right">✕</div>
-    <h4 style="color:#075e54">Manual Sync</h4>
-    <p style="font-size:10px; font-weight:bold;">My ID: <span id="my-id-label" style="word-break:break-all;">...</span></p>
-    <button onclick="copyMyId()" style="width:100%; font-size:11px; padding:5px;">Copy ID</button>
+    <div style="font-size:22px; cursor:pointer">⋮</div>
 </div>
 
 <div id="chat-container"></div>
@@ -74,67 +68,36 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let peer, myName, roomPass;
+    let peer, myName, roomPass, myUniqueTag;
     let connections = [];
     let chatHistory = [];
 
-    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
-
-    async function startChat() {
+    function startChat() {
         myName = document.getElementById('user-name').value.trim();
         roomPass = document.getElementById('room-pass').value.trim();
-        const loginBtn = document.getElementById('login-btn');
+        if(!myName || !roomPass) return alert("Please fill all fields");
 
-        if(!myName || !roomPass) return alert("Fill all fields");
-        
-        loginBtn.disabled = true;
-        loginBtn.innerText = "Verifying Name...";
-
-        // --- GLOBAL NAME LOCK LOGIC ---
-        // 1. Check local storage first
-        chatHistory = JSON.parse(localStorage.getItem('p2p_history_v7_' + roomPass)) || [];
-        const isNameInHistory = chatHistory.some(m => m.sender.toLowerCase() === myName.toLowerCase());
-        
-        // 2. Check Firebase permanent record
-        const nameRecordRef = db.ref('rooms/' + roomPass + '/registered_names');
-        const snapshot = await nameRecordRef.once('value');
-        let isNameRegistered = false;
-
-        snapshot.forEach(child => {
-            if(child.val().toLowerCase() === myName.toLowerCase()) isNameRegistered = true;
-        });
-
-        if(isNameRegistered || isNameInHistory) {
-            // Check if it's the SAME person (only if you want to allow re-entry on same device)
-            const savedName = localStorage.getItem('my_saved_name_' + roomPass);
-            if(savedName !== myName) {
-                alert("ACCESS DENIED: This username is permanently locked by another user.");
-                loginBtn.disabled = false;
-                loginBtn.innerText = "Enter Secure Room";
-                return;
-            }
+        // Generate or get a unique tag for this device (e.g., #4921)
+        let savedTag = localStorage.getItem('user_tag_' + roomPass);
+        if(!savedTag) {
+            savedTag = '#' + Math.floor(1000 + Math.random() * 9000);
+            localStorage.setItem('user_tag_' + roomPass, savedTag);
         }
+        myUniqueTag = savedTag;
 
-        // Lock this name for this device/session
-        localStorage.setItem('my_saved_name_' + roomPass, myName);
-        if(!isNameRegistered) {
-            nameRecordRef.push(myName); // Permanently lock in Firebase
-        }
-
+        chatHistory = JSON.parse(localStorage.getItem('p2p_history_v9_' + roomPass)) || [];
         displayMessages();
 
         peer = new Peer();
         peer.on('open', (id) => {
-            document.getElementById('my-id-label').innerText = id;
             document.getElementById('setup-box').style.display = 'none';
             document.getElementById('room-info').innerText = roomPass;
             
-            const activeRef = db.ref('rooms/' + roomPass + '/active_users');
-            const myStatusRef = activeRef.push({ id: id, name: myName });
-            myStatusRef.onDisconnect().remove();
+            const roomRef = db.ref('rooms/' + roomPass + '/active');
+            roomRef.push({ id: id, name: myName, tag: myUniqueTag });
             
-            activeRef.once('value', s => s.forEach(c => { if(c.val().id !== id) connect(c.val().id); }));
-            activeRef.on('child_added', s => { if(s.val().id !== id) connect(s.val().id); });
+            roomRef.once('value', s => s.forEach(c => { if(c.val().id !== id) connect(c.val().id); }));
+            roomRef.on('child_added', s => { if(s.val().id !== id) connect(s.val().id); });
         });
         peer.on('connection', setupConnection);
     }
@@ -162,7 +125,15 @@
     function sendMessage() {
         const input = document.getElementById('message-input');
         if(!input.value.trim()) return;
-        const msg = { mid: Date.now() + Math.random(), sender: myName, text: input.value, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) };
+
+        const msg = { 
+            mid: Date.now() + Math.random(), 
+            sender: myName, 
+            tag: myUniqueTag, // My permanent tag
+            text: input.value, 
+            time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) 
+        };
+
         connections.forEach(c => c.send(msg));
         saveAndRender(msg, 'mine');
         input.value = '';
@@ -173,16 +144,16 @@
     }
 
     function mergeHistory(remoteHistory) {
-        let updated = false;
+        let isUpdated = false;
         remoteHistory.forEach(rMsg => {
             if(!chatHistory.find(lMsg => lMsg.mid === rMsg.mid)) {
                 chatHistory.push(rMsg);
-                updated = true;
+                isUpdated = true;
             }
         });
-        if(updated) {
+        if(isUpdated) {
             chatHistory.sort((a, b) => a.mid - b.mid);
-            localStorage.setItem('p2p_history_v7_' + roomPass, JSON.stringify(chatHistory));
+            localStorage.setItem('p2p_history_v9_' + roomPass, JSON.stringify(chatHistory));
             displayMessages();
         }
     }
@@ -190,7 +161,7 @@
     function saveAndRender(msg, type) {
         if(type) msg.type = type;
         chatHistory.push(msg);
-        localStorage.setItem('p2p_history_v7_' + roomPass, JSON.stringify(chatHistory));
+        localStorage.setItem('p2p_history_v9_' + roomPass, JSON.stringify(chatHistory));
         renderMsg(msg);
     }
 
@@ -198,7 +169,16 @@
         const container = document.getElementById('chat-container');
         const div = document.createElement('div');
         div.className = `msg ${msg.type || 'others'}`;
-        div.innerHTML = `<span class="sender">${msg.sender}</span><span class="txt"></span><span class="time">${msg.time}</span>`;
+        
+        // Logic: You can pre-define "Official" Tags if you want.
+        // For now, it shows Name + Unique Tag
+        div.innerHTML = `
+            <span class="sender">
+                ${msg.sender} <span class="user-tag">${msg.tag}</span>
+            </span>
+            <span class="txt"></span>
+            <span class="time">${msg.time}</span>
+        `;
         div.querySelector('.txt').innerText = msg.text;
         container.prepend(div);
     }
@@ -207,11 +187,6 @@
         const container = document.getElementById('chat-container');
         container.innerHTML = '';
         [...chatHistory].sort((a,b) => a.mid - b.mid).forEach(m => renderMsg(m));
-    }
-
-    function copyMyId() {
-        navigator.clipboard.writeText(document.getElementById('my-id-label').innerText);
-        alert("Copied!");
     }
 
     document.getElementById('message-input').addEventListener('keypress', e => { if(e.key === 'Enter') sendMessage(); });

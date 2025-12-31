@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Secure P2P Chat - Fast Connect</title>
+    <title>Secure P2P Chat - Multi-Filter</title>
     
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -19,8 +19,8 @@
             z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         #menu-btn { cursor: pointer; font-size: 20px; padding: 5px; }
-        #status-dot { width: 10px; height: 10px; background: #ff4d4d; border-radius: 50%; border: 1px solid white; transition: 0.3s; }
-        #room-info { font-size: 13px; flex: 1; font-weight: bold; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; }
+        #status-dot { width: 10px; height: 10px; background: #ff4d4d; border-radius: 50%; border: 1px solid white; }
+        #room-info { font-size: 13px; flex: 1; font-weight: bold; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
         #controls-wrapper { flex: 2; display: flex; align-items: center; gap: 8px; }
         #input-container { flex: 1; display: flex; background: rgba(255,255,255,0.15); border-radius: 20px; padding: 2px 10px; align-items: center; }
@@ -45,17 +45,23 @@
         .time { font-size: 9px; color: #888; text-align: right; margin-top: 3px; }
         .bottom-spacer { height: 65px; width: 100%; flex-shrink: 0; }
 
-        #pin-sidebar { position: fixed; left: -280px; top: 0; bottom: 0; width: 260px; background: #f4f7f6; z-index: 2500; transition: 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.2); padding: 20px; }
+        /* Sidebar Fix for Multi-Select */
+        #pin-sidebar { position: fixed; left: -280px; top: 0; bottom: 0; width: 260px; background: #f4f7f6; z-index: 2500; transition: 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.2); padding: 20px; overflow-y: auto; }
         #pin-sidebar.open { left: 0; }
-        .pinned-item { padding: 12px; background: white; margin-bottom: 8px; border-radius: 8px; cursor: pointer; border: 1px solid #ddd; font-weight: bold; color: #075e54; display: flex; justify-content: space-between; }
+        .user-item { 
+            padding: 12px; background: white; margin-bottom: 8px; border-radius: 8px; 
+            display: flex; align-items: center; justify-content: space-between; 
+            border: 1px solid #ddd; font-weight: bold; color: #075e54;
+        }
+        .user-item input[type="checkbox"] { transform: scale(1.3); cursor: pointer; }
 
         #manual-box { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 4000; align-items: center; justify-content: center; padding: 20px; }
         .modal-inner { background: white; padding: 20px; border-radius: 15px; width: 100%; max-width: 300px; text-align: center; color: #333; }
         .modal-inner input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; }
-        .modal-inner button { padding: 10px 20px; background: #075e54; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        .modal-inner button { padding: 10px 20px; background: #075e54; color: white; border: none; border-radius: 8px; }
 
         #setup-box { position: fixed; inset: 0; background: #075e54; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; gap: 12px; padding: 25px; }
-        #setup-box input { width: 100%; max-width: 300px; padding: 12px; border-radius: 25px; border: none; text-align: center; font-size: 16px; }
+        #setup-box input { width: 100%; max-width: 300px; padding: 12px; border-radius: 25px; border: none; text-align: center; }
         #setup-box button { width: 100%; max-width: 300px; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
@@ -71,15 +77,15 @@
 
 <div id="pin-sidebar">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-        <h3 style="margin:0; color:#075e54;">Pinned Members</h3>
+        <h3 style="margin:0; color:#075e54;">Filter Users</h3>
         <span onclick="toggleSidebar()" style="cursor:pointer; font-size:24px;">✕</span>
     </div>
-    <div id="pinned-list"></div>
+    <div id="user-list"></div>
 </div>
 
 <div id="manual-box">
     <div class="modal-inner">
-        <h4 style="margin:0">Manual Connect</h4>
+        <h4 style="margin:0">Sync Manual</h4>
         <input type="text" id="manual-peer-id" placeholder="Enter Peer ID...">
         <button onclick="manualConnect()">Connect</button>
         <button onclick="toggleManual(false)" style="background:#888; margin-top:5px;">Cancel</button>
@@ -89,7 +95,7 @@
 
 <div id="header">
     <span id="menu-btn" onclick="toggleSidebar()">☰</span>
-    <div id="room-info" onclick="resetFilter()">
+    <div id="room-info">
         <div id="status-dot"></div> 
         <span id="room-txt">Room: Wait...</span>
     </div>
@@ -119,8 +125,8 @@
 
     let peer, myName, roomPass, myTag, myPeerID;
     let connections = {}, chatHistory = [];
-    let pinnedUsers = JSON.parse(localStorage.getItem('pinned_users')) || [];
-    let activeFilterTag = null;
+    let onlineUsers = {}; // বর্তমানে যারা কানেক্টেড আছে
+    let activeFilters = new Set(); // সিলেক্ট করা ইউজারদের ট্যাগ এখানে থাকবে
 
     function toggleSidebar() { document.getElementById('pin-sidebar').classList.toggle('open'); }
     function toggleManual(show) { 
@@ -132,32 +138,28 @@
         myName = document.getElementById('user-name').value.trim();
         roomPass = document.getElementById('room-pass').value.trim();
         let key = document.getElementById('private-key').value.trim();
-        if(!myName || !roomPass || !key) return alert("All fields required!");
+        if(!myName || !roomPass || !key) return alert("Required!");
 
         myTag = "#" + Array.from(key).reduce((a, b) => a + b.charCodeAt(0), 0).toString().slice(-4);
         document.getElementById('setup-box').style.display = 'none';
         document.getElementById('room-txt').innerText = "Room: " + roomPass;
-        updatePinnedUI();
 
-        chatHistory = JSON.parse(localStorage.getItem('chat_vFinal_'+roomPass)) || [];
+        chatHistory = JSON.parse(localStorage.getItem('chat_vFiltered_'+roomPass)) || [];
         renderAll();
 
-        // শক্তিশালী কানেকশন কনফিগ
         peer = new Peer({ config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]}});
         
         peer.on('open', id => {
             myPeerID = id;
             const myRef = db.ref('p2p_active/'+roomPass).child(id);
             myRef.set({id, name: myName, tag: myTag, time: Date.now()});
-            myRef.onDisconnect().remove(); // ট্যাব বন্ধ করলে ফায়ারবেস থেকে মুছে যাবে
+            myRef.onDisconnect().remove();
 
-            // অটো কানেক্ট সিস্টেম
             db.ref('p2p_active/'+roomPass).on('value', snap => {
-                const users = snap.val();
-                for (let k in users) {
-                    if (k !== id && !connections[k]) {
-                        setupConn(peer.connect(k, { reliable: true }));
-                    }
+                onlineUsers = snap.val() || {};
+                updateUserSidebar();
+                for (let k in onlineUsers) {
+                    if (k !== id && !connections[k]) setupConn(peer.connect(k, { reliable: true }));
                 }
             });
         });
@@ -177,7 +179,6 @@
             else saveMsg(d, 'others');
         });
         conn.on('close', () => { delete connections[conn.peer]; checkStatus(); });
-        conn.on('error', () => { delete connections[conn.peer]; checkStatus(); });
     }
 
     function checkStatus() {
@@ -203,7 +204,7 @@
         if(chatHistory.find(m => m.mid === msg.mid)) return;
         msg.msgType = type;
         chatHistory.unshift(msg);
-        localStorage.setItem('chat_vFinal_'+roomPass, JSON.stringify(chatHistory));
+        localStorage.setItem('chat_vFiltered_'+roomPass, JSON.stringify(chatHistory));
         renderAll();
     }
 
@@ -212,7 +213,7 @@
         remote.forEach(r => { if(!chatHistory.find(l => l.mid === r.mid)) { chatHistory.push(r); changed = true; }});
         if(changed) {
             chatHistory.sort((a,b) => b.mid - a.mid);
-            localStorage.setItem('chat_vFinal_'+roomPass, JSON.stringify(chatHistory));
+            localStorage.setItem('chat_vFiltered_'+roomPass, JSON.stringify(chatHistory));
             renderAll();
         }
     }
@@ -220,12 +221,17 @@
     function renderAll() {
         const list = document.getElementById('msg-list');
         list.innerHTML = '';
-        const displayList = activeFilterTag ? chatHistory.filter(m => m.tag === activeFilterTag) : chatHistory;
+        
+        // যদি কোনো ফিল্টার সিলেক্ট থাকে তবে ফিল্টার করো, নাহলে সব দেখাও
+        const displayList = activeFilters.size > 0 
+            ? chatHistory.filter(m => activeFilters.has(m.tag)) 
+            : chatHistory;
+
         displayList.forEach(m => {
             const w = document.createElement('div');
             w.className = `msg-wrapper ${m.msgType === 'mine' ? 'mine-wrapper' : 'others-wrapper'}`;
             w.innerHTML = `<div class="msg ${m.msgType}">
-                <span class="sender" onclick="pinUser('${m.sender}', '${m.tag}')">${m.sender} <small style="opacity:0.6">${m.tag}</small></span>
+                <span class="sender">${m.sender} <small style="opacity:0.6">${m.tag}</small></span>
                 <div>${escapeHTML(m.text)}</div>
                 <span class="time">${m.time}</span>
             </div>`;
@@ -233,30 +239,36 @@
         });
     }
 
-    function escapeHTML(t) { const d=document.createElement('div'); d.innerText=t; return d.innerHTML; }
-    function pinUser(name, tag) {
-        if(tag !== myTag && confirm(`Pin ${name}?`)) {
-            if(!pinnedUsers.find(u => u.tag === tag)) {
-                pinnedUsers.push({name, tag});
-                localStorage.setItem('pinned_users', JSON.stringify(pinnedUsers));
-                updatePinnedUI();
-            }
+    // সাইডবারে ইউজার লিস্ট আপডেট করা
+    function updateUserSidebar() {
+        const list = document.getElementById('user-list');
+        list.innerHTML = '';
+        
+        // অনলাইনে থাকা ইউনিক ইউজারদের লিস্ট বের করা
+        let uniqueUsers = {};
+        for(let k in onlineUsers) {
+            let u = onlineUsers[k];
+            if(u.tag !== myTag) uniqueUsers[u.tag] = u.name;
+        }
+
+        for(let tag in uniqueUsers) {
+            const d = document.createElement('div');
+            d.className = 'user-item';
+            d.innerHTML = `
+                <span>${uniqueUsers[tag]} <small style="opacity:0.5; font-size:10px">${tag}</small></span>
+                <input type="checkbox" ${activeFilters.has(tag) ? 'checked' : ''} onchange="handleFilter(this, '${tag}')">
+            `;
+            list.appendChild(d);
         }
     }
-    function updatePinnedUI() {
-        const l = document.getElementById('pinned-list');
-        l.innerHTML = '';
-        pinnedUsers.forEach((u, i) => {
-            const d = document.createElement('div');
-            d.className = 'pinned-item';
-            d.innerHTML = `<span>${u.name}</span> <span onclick="unpin(${i}, event)">✕</span>`;
-            d.onclick = () => applyFilter(u.tag, u.name);
-            l.appendChild(d);
-        });
+
+    function handleFilter(checkbox, tag) {
+        if(checkbox.checked) activeFilters.add(tag);
+        else activeFilters.delete(tag);
+        renderAll();
     }
-    function unpin(i, e) { e.stopPropagation(); pinnedUsers.splice(i, 1); localStorage.setItem('pinned_users', JSON.stringify(pinnedUsers)); updatePinnedUI(); }
-    function applyFilter(tag, name) { activeFilterTag = tag; document.getElementById('room-txt').innerText = "Viewing: " + name; toggleSidebar(); renderAll(); }
-    function resetFilter() { if(!activeFilterTag) return; activeFilterTag = null; document.getElementById('room-txt').innerText = "Room: " + roomPass; renderAll(); }
+
+    function escapeHTML(t) { const d=document.createElement('div'); d.innerText=t; return d.innerHTML; }
     document.getElementById('message-input').addEventListener('keypress', e => { if(e.key === 'Enter') sendMessage(); });
 </script>
 </body>

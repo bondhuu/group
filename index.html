@@ -3,39 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>P2P Pro Chat</title>
+    <title>P2P Top Input Chat</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
         * { box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; height: -webkit-fill-available; overflow: hidden; }
+        body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        #header { background: #075e54; color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-        .menu-btn { cursor: pointer; font-size: 24px; }
+        /* Fixed Top Section */
+        #top-section { flex-shrink: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        #header { background: #075e54; color: white; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; }
+        
+        #input-area { background: #f0f0f0; padding: 10px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid #ddd; }
+        #message-input { flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #ddd; outline: none; font-size: 16px; }
+        #send-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #075e54; }
 
+        /* Sidebar */
         #sidebar { position: fixed; right: -280px; top: 0; width: 280px; height: 100%; background: white; box-shadow: -2px 0 5px rgba(0,0,0,0.2); transition: 0.3s; z-index: 1000; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
         #sidebar.open { right: 0; }
-        .close-btn { align-self: flex-end; cursor: pointer; font-size: 20px; color: #666; }
 
-        #chat-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; background: #e5ddd5; }
-        .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; font-size: 14.5px; position: relative; word-wrap: break-word; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); }
+        /* Chat Messages Area - Scrollable */
+        #chat-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
+        .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; font-size: 14.5px; word-wrap: break-word; box-shadow: 0 1px 0.5px rgba(0,0,0,0.1); }
         .mine { align-self: flex-end; background: #dcf8c6; border-top-right-radius: 0; }
         .others { align-self: flex-start; background: white; border-top-left-radius: 0; }
-        .sender-name { font-size: 11px; font-weight: bold; color: #128c7e; display: block; margin-bottom: 2px; }
-        .time { font-size: 10px; color: #888; text-align: right; display: block; margin-top: 4px; }
+        .sender-name { font-size: 11px; font-weight: bold; color: #128c7e; display: block; }
+        .time { font-size: 10px; color: #888; text-align: right; margin-top: 4px; display: block; }
 
-        #input-area { background: #f0f0f0; padding: 10px; display: flex; gap: 8px; align-items: center; flex-shrink: 0; border-top: 1px solid #ddd; }
-        #message-input { flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #ddd; outline: none; font-size: 16px; background: white; }
-        #send-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #075e54; display: flex; align-items: center; justify-content: center; }
-        
+        /* Setup Box */
         #setup-box { position: fixed; inset: 0; background: #075e54; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; gap: 10px; padding: 20px; }
-        #setup-box input { width: 100%; max-width: 300px; padding: 12px; border-radius: 8px; border: none; font-size: 16px; }
-        #setup-box button { width: 100%; max-width: 300px; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; }
-        
-        .manual-box { display: flex; flex-direction: column; gap: 8px; }
-        .small-input { padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 12px; width: 100%; }
-        .action-btn { padding: 8px; background: #075e54; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; }
+        #setup-box input { width: 100%; max-width: 300px; padding: 12px; border-radius: 8px; border: none; }
+        #setup-box button { width: 100%; max-width: 300px; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -47,38 +47,29 @@
     <button onclick="startChat()">Enter Room</button>
 </div>
 
-<div id="header">
-    <div id="room-title" style="font-weight: bold;">Group Chat</div>
-    <div class="menu-btn" onclick="toggleSidebar()">⋮</div>
+<div id="top-section">
+    <div id="header">
+        <div id="room-title">Loading...</div>
+        <div style="cursor:pointer; font-size:24px;" onclick="toggleSidebar()">⋮</div>
+    </div>
+    <div id="input-area">
+        <input type="text" id="message-input" placeholder="Type message here..." autocomplete="off">
+        <button id="send-btn" onclick="sendMessage()">➔</button>
+    </div>
 </div>
 
 <div id="sidebar">
-    <div class="close-btn" onclick="toggleSidebar()">✖</div>
-    <div class="sidebar-title" style="font-weight:bold; color:#075e54; border-bottom:1px solid #ddd; padding-bottom:10px;">Manual Connect</div>
-    <div style="font-size: 12px; color: #555; line-height: 1.4; background: #f9f9f9; padding: 10px; border-radius: 5px;">
-        Use this if auto-connect fails:<br>
-        1. Copy your ID and send it to your friend.<br>
-        2. Paste your friend's ID below and click connect.
-    </div>
-    <div class="manual-box">
-        <label style="font-size: 11px;">Your ID:</label>
-        <input type="text" id="my-id-val" class="small-input" readonly>
-        <button class="action-btn" onclick="copyMyId()">Copy My ID</button>
-    </div>
-    <hr style="width: 100%; border: 0; border-top: 1px solid #eee;">
-    <div class="manual-box">
-        <label style="font-size: 11px;">Partner's ID:</label>
-        <input type="text" id="peer-id-input" class="small-input" placeholder="Paste ID here">
-        <button class="action-btn" style="background: #128c7e;" onclick="manualConnect()">Connect Manually</button>
-    </div>
+    <div style="text-align:right; cursor:pointer;" onclick="toggleSidebar()">✖</div>
+    <b style="color:#075e54">Manual Connect</b>
+    <p style="font-size:11px; color:#666">If auto-connect fails, copy your ID and share with friends.</p>
+    <input type="text" id="my-id-val" readonly style="width:100%; font-size:10px; padding:5px;">
+    <button onclick="copyMyId()" style="width:100%; margin-top:5px; font-size:12px; cursor:pointer">Copy My ID</button>
+    <hr>
+    <input type="text" id="peer-id-input" placeholder="Paste friend's ID" style="width:100%; padding:5px;">
+    <button onclick="manualConnect()" style="width:100%; margin-top:5px; font-size:12px; background:#128c7e; color:white; border:none; padding:8px; cursor:pointer">Manual Connect</button>
 </div>
 
 <div id="chat-container"></div>
-
-<div id="input-area">
-    <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
-    <button id="send-btn" onclick="sendMessage()">➔</button>
-</div>
 
 <script>
     const firebaseConfig = {
@@ -103,9 +94,9 @@
     function startChat() {
         myName = document.getElementById('user-name').value.trim();
         roomPass = document.getElementById('room-pass').value.trim();
-        if(!myName || !roomPass) return alert("Please fill in all fields");
+        if(!myName || !roomPass) return alert("Fill all fields");
 
-        chatHistory = JSON.parse(localStorage.getItem('p2p_v4_' + roomPass)) || [];
+        chatHistory = JSON.parse(localStorage.getItem('p2p_v5_' + roomPass)) || [];
         displayMessages();
 
         peer = new Peer();
@@ -128,31 +119,34 @@
 
     function manualConnect() {
         const id = document.getElementById('peer-id-input').value.trim();
-        if(id) { connect(id); toggleSidebar(); alert("Connection request sent!"); }
+        if(id) { connect(id); toggleSidebar(); }
     }
 
     function copyMyId() {
-        const copyText = document.getElementById("my-id-val");
-        copyText.select();
-        document.execCommand("copy");
-        alert("ID Copied to Clipboard!");
+        const el = document.getElementById("my-id-val");
+        el.select(); document.execCommand("copy");
+        alert("ID Copied!");
     }
 
     function setupConnection(conn) {
         conn.on('open', () => {
             if(!connections.find(c => c.peer === conn.peer)) connections.push(conn);
+            // Request History Sync from others
             conn.send({ type: 'SYNC_REQ' });
         });
         conn.on('data', data => {
             if(data.type === 'SYNC_REQ') {
-                if(chatHistory.length > 0) conn.send({ type: 'SYNC_DATA', data: chatHistory });
+                if(chatHistory.length > 0) conn.send({ type: 'SYNC_DATA', history: chatHistory });
             } else if(data.type === 'SYNC_DATA') {
-                if(data.data.length > chatHistory.length) {
-                    chatHistory = data.data;
-                    localStorage.setItem('p2p_v4_' + roomPass, JSON.stringify(chatHistory));
+                // Merge history if incoming is larger
+                if(data.history.length > chatHistory.length) {
+                    chatHistory = data.history;
+                    localStorage.setItem('p2p_v5_' + roomPass, JSON.stringify(chatHistory));
                     displayMessages();
                 }
-            } else { saveAndDisplay(data, 'others'); }
+            } else {
+                saveAndDisplay(data, 'others');
+            }
         });
     }
 
@@ -167,7 +161,7 @@
 
     function saveAndDisplay(msg, type) {
         chatHistory.push({...msg, type});
-        localStorage.setItem('p2p_v4_' + roomPass, JSON.stringify(chatHistory));
+        localStorage.setItem('p2p_v5_' + roomPass, JSON.stringify(chatHistory));
         renderMsg(msg, type);
     }
 
@@ -175,10 +169,11 @@
         const container = document.getElementById('chat-container');
         const div = document.createElement('div');
         div.className = `msg ${type}`;
-        div.innerHTML = `<span class="sender-name"></span><span class="text-content"></span><span class="time"></span>`;
+        div.innerHTML = `<span class="sender-name"></span><span class="text"></span><span class="time"></span>`;
         div.querySelector('.sender-name').innerText = msg.sender;
-        div.querySelector('.text-content').innerText = msg.text;
+        div.querySelector('.text').innerText = msg.text;
         div.querySelector('.time').innerText = msg.time;
+        // In this layout, new messages appear at the bottom of the container
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
     }

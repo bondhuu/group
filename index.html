@@ -1,16 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Secure P2P Chat - Newest First</title>
+    <title>P2P Secure Sync Chat</title>
+    
+    <meta name="theme-color" content="#075e54">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/5968/5968771.png">
+    
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
     <style>
-        * { box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
+        /* Header */
         #header { 
             background: #075e54; color: white; padding: 10px; 
             display: flex; align-items: center; gap: 8px; flex-shrink: 0;
@@ -22,17 +28,17 @@
         #message-input::placeholder { color: #ccc; }
         #send-btn { background: none; border: none; color: #dcf8c6; font-size: 20px; cursor: pointer; }
 
-        /* চ্যাট এরিয়া: নতুন মেসেজ উপরে দেখানোর জন্য column-reverse ব্যবহার করা হয়নি, লজিক দিয়ে ঠিক করা হয়েছে */
+        /* Chat Container - Newest messages at TOP */
         #chat-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
         
         .msg { max-width: 80%; padding: 8px 12px; border-radius: 10px; font-size: 14px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); word-break: break-all; }
         .mine { align-self: flex-end; background: #dcf8c6; border-top-right-radius: 0; }
         .others { align-self: flex-start; background: white; border-top-left-radius: 0; }
-        
         .sender { font-size: 11px; font-weight: bold; color: #128c7e; display: block; margin-bottom: 2px; }
         .user-tag { color: #888; font-size: 9px; font-weight: normal; }
         .time { font-size: 10px; color: #888; display: block; margin-top: 4px; text-align: right; }
 
+        /* Setup Box */
         #setup-box { position: fixed; inset: 0; background: #075e54; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; gap: 12px; padding: 25px; }
         #setup-box input { width: 100%; max-width: 300px; padding: 12px; border-radius: 25px; border: none; text-align: center; font-size: 16px; outline: none; }
         #setup-box button { width: 100%; max-width: 300px; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; font-size: 16px; }
@@ -44,7 +50,7 @@
 
 <div id="setup-box">
     <div id="login-form" style="text-align: center; width: 100%;">
-        <h2 style="margin-bottom: 20px;">Secure Private Chat</h2>
+        <h2 style="margin-bottom: 20px;">Secure Distributed Chat</h2>
         <input type="text" id="user-name" placeholder="আপনার নাম">
         <input type="text" id="room-pass" placeholder="রুম পাসওয়ার্ড">
         <input type="text" id="private-key" placeholder="প্রাইভেট কি (যদি থাকে)">
@@ -52,9 +58,9 @@
     </div>
     
     <div id="key-alert">
-        <p style="font-size: 14px; margin-bottom: 10px;">আপনার <b>প্রাইভেট কি</b> সেভ করে রাখুন:</p>
+        <p style="font-size: 14px; margin-bottom: 10px;">আপনার <b>প্রাইভেট কি</b> সেভ করে রাখুন। এটি ছাড়া পরিচয় রিকভার করা যাবে না:</p>
         <div id="generated-key" style="background: #f0f0f0; padding: 10px; border-radius: 5px; font-weight: bold; color: #075e54; margin-bottom: 15px; word-break: break-all;"></div>
-        <button onclick="proceedToChat()" style="background: #075e54; width: 100%;">আমি সেভ করেছি</button>
+        <button onclick="proceedToChat()" style="background: #075e54; color:white; width: 100%;">আমি সেভ করেছি</button>
     </div>
 </div>
 
@@ -69,6 +75,7 @@
 <div id="chat-container"></div>
 
 <script>
+    // Firebase Configuration
     const firebaseConfig = {
         apiKey: "AIzaSyDZ0i_k2IFXOcXeGwrD2tZWQJvR0_Ztgd8",
         authDomain: "group-e14e4.firebaseapp.com",
@@ -106,21 +113,22 @@
         document.getElementById('setup-box').style.display = 'none';
         document.getElementById('room-info').innerText = "রুম: " + roomPass;
 
-        chatHistory = JSON.parse(localStorage.getItem('chat_v12_' + roomPass)) || [];
+        chatHistory = JSON.parse(localStorage.getItem('chat_p2p_vFinal_' + roomPass)) || [];
         renderAllMessages();
 
         peer = new Peer();
         peer.on('open', (id) => {
-            const roomRef = db.ref('online_users/' + roomPass).child(id);
+            const roomRef = db.ref('online_p2p/' + roomPass).child(id);
             roomRef.set({ id, name: myName, tag: myTag });
             roomRef.onDisconnect().remove();
 
-            db.ref('online_users/' + roomPass).on('child_added', s => {
+            db.ref('online_p2p/' + roomPass).on('child_added', s => {
                 if(s.val().id !== id) connectTo(s.val().id);
             });
         });
 
         peer.on('connection', setupConn);
+        stayAlive(); // ব্যাকগ্রাউন্ডে সচল রাখার চেষ্টা
     }
 
     function connectTo(id) {
@@ -176,16 +184,16 @@
             }
         });
         if(updated) {
-            chatHistory.sort((a,b) => b.mid - a.mid); // বড় থেকে ছোট (নতুন আগে)
-            localStorage.setItem('chat_v12_' + roomPass, JSON.stringify(chatHistory));
+            chatHistory.sort((a,b) => b.mid - a.mid);
+            localStorage.setItem('chat_p2p_vFinal_' + roomPass, JSON.stringify(chatHistory));
             renderAllMessages();
         }
     }
 
     function saveAndRender(msg, type) {
         msg.msgType = type;
-        chatHistory.unshift(msg); // অ্যারের শুরুতে যোগ করা (নতুন মেসেজ আগে)
-        localStorage.setItem('chat_v12_' + roomPass, JSON.stringify(chatHistory));
+        chatHistory.unshift(msg);
+        localStorage.setItem('chat_p2p_vFinal_' + roomPass, JSON.stringify(chatHistory));
         appendMsgToTop(msg);
     }
 
@@ -199,14 +207,13 @@
             <span class="time">${msg.time}</span>
         `;
         div.querySelector('.txt').innerText = msg.text;
-        container.prepend(div); // সবার উপরে যোগ করা
-        container.scrollTop = 0; // স্ক্রল উপরে নিয়ে যাওয়া যাতে নতুন মেসেজ দেখা যায়
+        container.prepend(div);
+        container.scrollTop = 0;
     }
 
     function renderAllMessages() {
         const container = document.getElementById('chat-container');
         container.innerHTML = '';
-        // হিস্ট্রি থেকে রেন্ডার করার সময়ও নতুনগুলো আগে দেখাবে
         [...chatHistory].sort((a,b) => b.mid - a.mid).forEach(m => {
             const div = document.createElement('div');
             div.className = `msg ${m.msgType || 'others'}`;
@@ -220,7 +227,30 @@
         });
     }
 
+    // ব্যাকগ্রাউন্ডে সচল রাখার লজিক
+    async function stayAlive() {
+        if ('wakeLock' in navigator) {
+            try { await navigator.wakeLock.request('screen'); } catch (err) {}
+        }
+    }
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && peer && peer.disconnected) peer.reconnect();
+    });
+    window.addEventListener('online', () => { if(peer) peer.reconnect(); });
+
+    // এন্টার প্রেস করলে মেসেজ পাঠানো
     document.getElementById('message-input').addEventListener('keypress', e => { if(e.key === 'Enter') sendMessage(); });
+
+    // সার্ভিস ওয়ার্কার ইনলাইন রেজিস্ট্রেশন (বেসিক অফলাইন সাপোর্ট)
+    if ('serviceWorker' in navigator) {
+        const swCode = `
+            self.addEventListener('install', e => self.skipWaiting());
+            self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+        `;
+        const blob = new Blob([swCode], {type: 'text/javascript'});
+        navigator.serviceWorker.register(URL.createObjectURL(blob));
+    }
 </script>
+
 </body>
 </html>

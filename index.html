@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Secure P2P Chat - Sidebar Search</title>
+    <title>Stable Secure P2P</title>
     
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -13,51 +13,43 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
+        /* Header */
         #header { 
             background: #075e54; color: white; padding: 10px 12px; 
             display: flex; align-items: center; gap: 8px; flex-shrink: 0;
             z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         #menu-btn { cursor: pointer; font-size: 20px; padding: 5px; }
-        #status-dot { width: 10px; height: 10px; background: #ff4d4d; border-radius: 50%; border: 1px solid white; }
+        #status-dot { width: 10px; height: 10px; background: #ff4d4d; border-radius: 50%; border: 1px solid white; transition: 0.3s; }
         #room-info { font-size: 13px; flex: 1; font-weight: bold; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
-        #controls-wrapper { flex: 2; display: flex; align-items: center; gap: 8px; }
-        #input-container { flex: 1; display: flex; background: rgba(255,255,255,0.15); border-radius: 20px; padding: 2px 10px; align-items: center; }
-        #message-input { flex: 1; background: none; border: none; color: white; padding: 6px; outline: none; font-size: 15px; width: 10px; }
-        #send-btn { background: none; border: none; color: #dcf8c6; font-size: 18px; cursor: pointer; }
-        #dots-menu-btn { color: white; font-size: 24px; cursor: pointer; padding: 0 5px; }
+        /* Sidebar & Search */
+        #pin-sidebar { position: fixed; left: -280px; top: 0; bottom: 0; width: 260px; background: #f4f7f6; z-index: 2500; transition: 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.2); padding: 20px; overflow-y: auto; }
+        #pin-sidebar.open { left: 0; }
+        #sidebar-search { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px; outline: none; font-size: 14px; }
 
+        /* Chat UI */
         #chat-container { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
         .msg-wrapper { display: flex; width: 100%; margin: 1px 0; }
         .mine-wrapper { justify-content: flex-end; padding-left: 15%; }
         .others-wrapper { justify-content: flex-start; padding-right: 15%; }
 
-        .msg { 
-            display: inline-flex; flex-direction: column; max-width: 100%; 
-            padding: 6px 10px; border-radius: 12px; font-size: 14.5px; 
-            box-shadow: 0 1px 1px rgba(0,0,0,0.1); line-height: 1.35;
-            word-wrap: break-word; overflow-wrap: anywhere; white-space: pre-wrap;
-        }
+        .msg { padding: 6px 10px; border-radius: 12px; font-size: 14.5px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); max-width: 100%; word-wrap: break-word; }
         .mine { background: #dcf8c6; border-top-right-radius: 2px; }
         .others { background: white; border-top-left-radius: 2px; }
-        .sender { font-size: 11px; font-weight: bold; color: #128c7e; cursor: pointer; margin-bottom: 2px; }
-        .time { font-size: 9px; color: #888; text-align: right; margin-top: 3px; }
-        .bottom-spacer { height: 65px; width: 100%; flex-shrink: 0; }
+        .sender { font-size: 11px; font-weight: bold; color: #128c7e; margin-bottom: 2px; display: block; }
+        .time { font-size: 9px; color: #888; text-align: right; margin-top: 3px; display: block; }
 
-        /* Sidebar Fix with Search */
-        #pin-sidebar { position: fixed; left: -280px; top: 0; bottom: 0; width: 260px; background: #f4f7f6; z-index: 2500; transition: 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.2); padding: 20px; overflow-y: auto; }
-        #pin-sidebar.open { left: 0; }
-        
-        /* Search Box Design */
-        #sidebar-search { 
-            width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; 
-            margin-bottom: 20px; outline: none; font-size: 14px;
-        }
+        /* Controls */
+        #controls-wrapper { flex: 2; display: flex; align-items: center; gap: 8px; }
+        #input-container { flex: 1; display: flex; background: rgba(255,255,255,0.15); border-radius: 20px; padding: 2px 10px; align-items: center; }
+        #message-input { flex: 1; background: none; border: none; color: white; padding: 6px; outline: none; font-size: 15px; width: 10px; }
+        #send-btn { background: none; border: none; color: #dcf8c6; font-size: 18px; cursor: pointer; }
 
+        /* Login Box */
         #setup-box { position: fixed; inset: 0; background: #075e54; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5000; gap: 12px; padding: 25px; }
         #setup-box input { width: 100%; max-width: 300px; padding: 12px; border-radius: 25px; border: none; text-align: center; }
-        #setup-box button { width: 100%; max-width: 300px; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 25px; font-weight: bold; }
+        #setup-box button { width: 100%; max-width: 300px; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -67,7 +59,7 @@
     <input type="text" id="user-name" placeholder="Name">
     <input type="text" id="room-pass" placeholder="Room Password">
     <input type="text" id="private-key" placeholder="Private Key">
-    <button onclick="startChat()">Enter Chat</button>
+    <button type="button" onclick="startChat()">Enter Chat</button>
 </div>
 
 <div id="pin-sidebar">
@@ -75,10 +67,7 @@
         <h3 style="margin:0; color:#075e54;">Message Filter</h3>
         <span onclick="toggleSidebar()" style="cursor:pointer; font-size:24px;">✕</span>
     </div>
-    
     <input type="text" id="sidebar-search" placeholder="Search Name or #Tag..." oninput="renderAll()">
-    
-    <div id="user-list"></div>
 </div>
 
 <div id="header">
@@ -92,13 +81,11 @@
             <input type="text" id="message-input" placeholder="Message..." autocomplete="off">
             <button onclick="sendMessage()" id="send-btn">➔</button>
         </div>
-        <span id="dots-menu-btn">⋮</span>
     </div>
 </div>
 
 <div id="chat-container">
     <div id="msg-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
-    <div class="bottom-spacer"></div>
 </div>
 
 <script>
@@ -111,7 +98,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let peer, myName, roomPass, myTag, myPeerID;
+    let peer, myName, roomPass, myTag;
     let connections = {}, chatHistory = [];
 
     function toggleSidebar() { document.getElementById('pin-sidebar').classList.toggle('open'); }
@@ -120,46 +107,68 @@
         myName = document.getElementById('user-name').value.trim();
         roomPass = document.getElementById('room-pass').value.trim();
         let key = document.getElementById('private-key').value.trim();
+        
         if(!myName || !roomPass || !key) return alert("Required!");
 
         myTag = "#" + Array.from(key).reduce((a, b) => a + b.charCodeAt(0), 0).toString().slice(-4);
+        
+        // লগইন বক্স লুকানো
         document.getElementById('setup-box').style.display = 'none';
         document.getElementById('room-txt').innerText = "Room: " + roomPass;
 
-        chatHistory = JSON.parse(localStorage.getItem('chat_vFinal_'+roomPass)) || [];
+        chatHistory = JSON.parse(localStorage.getItem('chat_vFix_'+roomPass)) || [];
         renderAll();
 
-        peer = new Peer({ config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]}});
+        initPeer();
+    }
+
+    function initPeer() {
+        peer = new Peer({
+            config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]}
+        });
         
         peer.on('open', id => {
-            myPeerID = id;
             const myRef = db.ref('p2p_active/'+roomPass).child(id);
             myRef.set({id, name: myName, tag: myTag, time: Date.now()});
             myRef.onDisconnect().remove();
 
             db.ref('p2p_active/'+roomPass).on('value', snap => {
                 const users = snap.val() || {};
-                for (let k in users) if (k !== id && !connections[k]) setupConn(peer.connect(k));
+                for (let k in users) {
+                    if (k !== id && !connections[k]) setupConn(peer.connect(k));
+                }
             });
         });
+
         peer.on('connection', setupConn);
+        
+        // এরর হ্যান্ডলিং যেন লগআউট না হয়
+        peer.on('error', err => {
+            console.error("PeerJS Error:", err);
+            if(err.type === 'peer-unavailable') updateStatus();
+        });
     }
 
     function setupConn(conn) {
+        if(!conn) return;
         conn.on('open', () => {
             connections[conn.peer] = conn;
-            document.getElementById('status-dot').style.background = '#00ff00';
+            updateStatus();
             conn.send({type: 'SYNC', history: chatHistory});
         });
         conn.on('data', d => {
             if(d.type === 'SYNC') mergeData(d.history);
             else saveMsg(d, 'others');
         });
-        conn.on('close', () => { delete connections[conn.peer]; checkStatus(); });
+        conn.on('close', () => { 
+            delete connections[conn.peer]; 
+            updateStatus(); 
+        });
     }
 
-    function checkStatus() {
-        if(Object.keys(connections).length === 0) document.getElementById('status-dot').style.background = '#ff4d4d';
+    function updateStatus() {
+        const dot = document.getElementById('status-dot');
+        dot.style.background = Object.keys(connections).length > 0 ? '#00ff00' : '#ff4d4d';
     }
 
     function sendMessage() {
@@ -175,7 +184,7 @@
         if(chatHistory.find(m => m.mid === msg.mid)) return;
         msg.msgType = type;
         chatHistory.unshift(msg);
-        localStorage.setItem('chat_vFinal_'+roomPass, JSON.stringify(chatHistory));
+        localStorage.setItem('chat_vFix_'+roomPass, JSON.stringify(chatHistory));
         renderAll();
     }
 
@@ -184,18 +193,16 @@
         remote.forEach(r => { if(!chatHistory.find(l => l.mid === r.mid)) { chatHistory.push(r); changed = true; }});
         if(changed) {
             chatHistory.sort((a,b) => b.mid - a.mid);
-            localStorage.setItem('chat_vFinal_'+roomPass, JSON.stringify(chatHistory));
+            localStorage.setItem('chat_vFix_'+roomPass, JSON.stringify(chatHistory));
             renderAll();
         }
     }
 
-    // ফিল্টার লজিকসহ রেন্ডার ফাংশন
     function renderAll() {
         const query = document.getElementById('sidebar-search').value.trim().toLowerCase();
         const list = document.getElementById('msg-list');
         list.innerHTML = '';
 
-        // যদি সার্চ বক্সে কিছু থাকে তবে ফিল্টার করো, নাহলে সব দেখাও
         const displayList = query 
             ? chatHistory.filter(m => m.sender.toLowerCase().includes(query) || m.tag.includes(query)) 
             : chatHistory;

@@ -2,45 +2,62 @@
 <html lang="bn">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P গ্রুপ চ্যাট (হিস্ট্রি সিঙ্ক সহ)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>P2P চ্যাট - ক্লিন ডিজাইন</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
-        #setup-box { position: fixed; inset: 0; background: #075e54; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; gap: 15px; }
-        #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { max-width: 80%; padding: 10px; border-radius: 10px; background: white; font-size: 14px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); word-wrap: break-word; }
-        .mine { align-self: flex-end; background: #dcf8c6; }
-        .others { align-self: flex-start; }
-        .sender-name { font-size: 11px; font-weight: bold; color: #128c7e; margin-bottom: 3px; display: block; }
-        .time { font-size: 10px; color: #999; text-align: right; display: block; margin-top: 4px; }
-        #input-area { background: #f0f0f0; padding: 10px; display: flex; gap: 10px; border-top: 1px solid #ddd; }
-        input { flex: 1; padding: 12px; border-radius: 25px; border: none; outline: none; }
-        button { background: #075e54; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; }
-        #status-bar { font-size: 12px; padding: 5px; text-align: center; background: #eee; color: #555; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; color: #333; }
+        
+        /* সেটআপ বক্স স্টাইল */
+        #setup-box { position: fixed; inset: 0; background: #075e54; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+        #setup-box h2 { margin-bottom: 20px; font-weight: 300; }
+        #setup-box input { width: 100%; max-width: 300px; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: none; font-size: 16px; }
+        #setup-box button { width: 100%; max-width: 300px; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        #setup-box button:hover { background: #0b6b5d; }
+
+        /* হেডার ও স্ট্যাটাস */
+        #header { background: #075e54; color: white; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        #status-bar { font-size: 12px; color: #dcf8c6; }
+
+        /* চ্যাট এরিয়া */
+        #chat-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
+        .msg { max-width: 75%; padding: 8px 12px; border-radius: 8px; font-size: 14.5px; position: relative; line-height: 1.4; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); }
+        .mine { align-self: flex-end; background: #dcf8c6; border-top-right-radius: 0; }
+        .others { align-self: flex-start; background: white; border-top-left-radius: 0; }
+        .sender-name { font-size: 11px; font-weight: bold; color: #128c7e; display: block; margin-bottom: 2px; }
+        .time { font-size: 10px; color: #888; text-align: right; display: block; margin-top: 4px; }
+
+        /* ইনপুট এরিয়া */
+        #input-area { background: #f0f0f0; padding: 10px; display: flex; gap: 8px; align-items: center; }
+        #message-input { flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #ddd; font-size: 15px; outline: none; }
+        #send-btn { background: #075e54; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; }
     </style>
 </head>
 <body>
 
 <div id="setup-box">
     <h2>P2P সিকিউর চ্যাট</h2>
-    <input type="text" id="user-name" placeholder="আপনার নাম লিখুন" style="width: 250px;">
-    <input type="text" id="room-pass" placeholder="রুম পাসওয়ার্ড দিন" style="width: 250px;">
+    <input type="text" id="user-name" placeholder="আপনার নাম">
+    <input type="text" id="room-pass" placeholder="রুম পাসওয়ার্ড">
     <button onclick="startChat()">রুমে প্রবেশ করুন</button>
 </div>
 
-<div id="status-bar">কানেকশন চেক করা হচ্ছে...</div>
+<div id="header">
+    <div style="font-weight: bold;">গ্রুপ চ্যাট</div>
+    <div id="status-bar">অফলাইন</div>
+</div>
+
 <div id="chat-container"></div>
 
 <div id="input-area">
     <input type="text" id="message-input" placeholder="মেসেজ লিখুন...">
-    <button onclick="sendMessage()">পাঠান</button>
+    <button id="send-btn" onclick="sendMessage()">➔</button>
 </div>
 
 <script>
-    // আপনার ফায়ারবেস কনফিগারেশন
     const firebaseConfig = {
         apiKey: "AIzaSyDZ0i_k2IFXOcXeGwrD2tZWQJvR0_Ztgd8",
         authDomain: "group-e14e4.firebaseapp.com",
@@ -62,71 +79,54 @@
         myName = document.getElementById('user-name').value.trim();
         roomPass = document.getElementById('room-pass').value.trim();
 
-        if(!myName || !roomPass) return alert("নাম এবং পাসওয়ার্ড দিন");
+        if(!myName || !roomPass) return alert("দয়া করে নাম ও পাসওয়ার্ড দিন");
 
-        // লোকাল স্টোরেজ থেকে পুরনো মেসেজ লোড
-        chatHistory = JSON.parse(localStorage.getItem('p2p_history_' + roomPass)) || [];
+        chatHistory = JSON.parse(localStorage.getItem('p2p_v3_' + roomPass)) || [];
         displayMessages();
 
         peer = new Peer();
 
         peer.on('open', (myId) => {
             document.getElementById('setup-box').style.display = 'none';
-            document.getElementById('status-bar').innerText = "রুম: " + roomPass + " | অনলাইন";
+            document.getElementById('status-bar').innerText = "রুম: " + roomPass;
             
-            const roomRef = db.ref('rooms/' + roomPass);
-            roomRef.push({ id: myId, name: myName });
-
-            // অনলাইনে থাকা অন্যদের সাথে কানেক্ট হওয়া
-            roomRef.once('value', (snapshot) => {
-                snapshot.forEach((child) => {
-                    const data = child.val();
-                    if(data.id !== myId) connectToPeer(data.id);
+            db.ref('rooms/' + roomPass).push({ id: myId, name: myName });
+            
+            db.ref('rooms/' + roomPass).once('value', snapshot => {
+                snapshot.forEach(child => {
+                    if(child.val().id !== myId) connectToPeer(child.val().id);
                 });
             });
 
-            // নতুন কেউ জয়েন করলে অটো কানেক্ট
-            roomRef.on('child_added', (snapshot) => {
-                const data = snapshot.val();
-                if(data.id !== myId) connectToPeer(data.id);
+            db.ref('rooms/' + roomPass).on('child_added', snapshot => {
+                if(snapshot.val().id !== myId) connectToPeer(snapshot.val().id);
             });
         });
 
-        peer.on('connection', (conn) => {
-            setupConnection(conn);
-        });
+        peer.on('connection', setupConnection);
     }
 
-    function connectToPeer(targetId) {
-        if(connections.find(c => c.peer === targetId)) return;
-        const conn = peer.connect(targetId);
-        setupConnection(conn);
+    function connectToPeer(id) {
+        if(connections.find(c => c.peer === id)) return;
+        setupConnection(peer.connect(id));
     }
 
     function setupConnection(conn) {
         conn.on('open', () => {
             if(!connections.find(c => c.peer === conn.peer)) connections.push(conn);
-            // নতুন জয়েন করার পর হিস্ট্রির জন্য রিকোয়েস্ট পাঠানো
-            conn.send({ type: 'SYNC_REQUEST' });
+            conn.send({ type: 'SYNC_REQ' });
         });
 
-        conn.on('data', (data) => {
-            // যদি কেউ হিস্ট্রি রিকোয়েস্ট করে
-            if (data.type === 'SYNC_REQUEST') {
-                if(chatHistory.length > 0) {
-                    conn.send({ type: 'SYNC_DATA', history: chatHistory });
-                }
-            } 
-            // যদি কেউ হিস্ট্রি পাঠায়
-            else if (data.type === 'SYNC_DATA') {
-                if(data.history.length > chatHistory.length) {
-                    chatHistory = data.history;
-                    localStorage.setItem('p2p_history_' + roomPass, JSON.stringify(chatHistory));
+        conn.on('data', data => {
+            if(data.type === 'SYNC_REQ') {
+                if(chatHistory.length > 0) conn.send({ type: 'SYNC_DATA', data: chatHistory });
+            } else if(data.type === 'SYNC_DATA') {
+                if(data.data.length > chatHistory.length) {
+                    chatHistory = data.data;
+                    localStorage.setItem('p2p_v3_' + roomPass, JSON.stringify(chatHistory));
                     displayMessages();
                 }
-            } 
-            // সাধারণ মেসেজ
-            else {
+            } else {
                 saveAndDisplay(data, 'others');
             }
         });
@@ -134,36 +134,22 @@
 
     function sendMessage() {
         const input = document.getElementById('message-input');
-        const text = input.value.trim();
-        if(!text) return;
-
-        const msgObj = { 
-            sender: myName, 
-            text: text, 
-            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
-        };
-        
-        connections.forEach(c => c.send(msgObj));
-        saveAndDisplay(msgObj, 'mine');
+        if(!input.value.trim()) return;
+        const msg = { sender: myName, text: input.value, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) };
+        connections.forEach(c => c.send(msg));
+        saveAndDisplay(msg, 'mine');
         input.value = '';
     }
 
     function saveAndDisplay(msg, type) {
         chatHistory.push({...msg, type});
-        localStorage.setItem('p2p_history_' + roomPass, JSON.stringify(chatHistory));
+        localStorage.setItem('p2p_v3_' + roomPass, JSON.stringify(chatHistory));
         renderMsg(msg, type);
     }
 
     function renderMsg(msg, type) {
         const container = document.getElementById('chat-container');
-        const html = `
-            <div class="msg ${type}">
-                <span class="sender-name">${msg.sender}</span>
-                ${msg.text}
-                <span class="time">${msg.time}</span>
-            </div>
-        `;
-        container.innerHTML += html;
+        container.innerHTML += `<div class="msg ${type}"><span class="sender-name">${msg.sender}</span>${msg.text}<span class="time">${msg.time}</span></div>`;
         container.scrollTop = container.scrollHeight;
     }
 
@@ -172,6 +158,11 @@
         container.innerHTML = '';
         chatHistory.forEach(m => renderMsg(m, m.type || 'others'));
     }
+
+    // Enter চাপলে মেসেজ যাবে
+    document.getElementById('message-input').addEventListener('keypress', e => {
+        if(e.key === 'Enter') sendMessage();
+    });
 </script>
 </body>
 </html>

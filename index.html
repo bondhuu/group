@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Secure P2P Chat - Slim Mode</title>
+<title>Secure P2P Chat - Fixed</title>
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -41,35 +41,37 @@ body{
     padding-bottom:110px;
     display:flex;
     flex-direction:column;
-    gap:6px;
+    gap:8px;
 }
 
-/* ✅ FIXED MESSAGE BUBBLE */
-.msg{
-    display:inline-flex;
-    flex-direction:column;
-    max-width:85vw;
-    padding:6px 10px;
-    border-radius:10px;
-    font-size:14px;
-    box-shadow:0 1px 1px rgba(0,0,0,0.1);
-    word-break:break-word;
-    overflow-wrap:anywhere;
-    white-space:pre-wrap;
-    line-height:1.4;
+/* ✅ বাবলের ডিজাইন ফিক্সড */
+.msg-wrapper { display: flex; width: 100%; }
+.mine-wrapper { justify-content: flex-end; }
+.others-wrapper { justify-content: flex-start; }
+
+.msg {
+    display: table; /* বাবলকে লেখার সাইজ অনুযায়ী ছোট রাখবে */
+    max-width: 80%;
+    padding: 7px 11px;
+    border-radius: 12px;
+    font-size: 14px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    line-height: 1.4;
 }
 
-.mine{align-self:flex-end;background:#dcf8c6;border-top-right-radius:2px;}
-.others{align-self:flex-start;background:white;border-top-left-radius:2px;}
+.mine { background:#dcf8c6; border-top-right-radius: 2px; }
+.others { background:white; border-top-left-radius: 2px; }
 
-.sender{font-size:11px;font-weight:bold;color:#128c7e;margin-bottom:2px;cursor:pointer;}
-.user-tag{color:#888;font-size:9px;}
-.time{font-size:9px;color:#888;text-align:right;margin-top:3px;}
+.sender { font-size:11px; font-weight:bold; color:#128c7e; margin-bottom:2px; cursor:pointer; }
+.user-tag { color:#888; font-size:9px; font-weight: normal; }
+.time { font-size:9px; color:#888; text-align:right; margin-top:3px; display: block; }
 
 #pin-sidebar{
     position:fixed;
     left:-260px;
-    top:0;bottom:0;
+    top:0; bottom:0;
     width:250px;
     background:#f4f7f6;
     z-index:2500;
@@ -78,17 +80,8 @@ body{
     padding:20px;
 }
 #pin-sidebar.open{left:0;}
-.pinned-user-item{
-    padding:12px;
-    background:white;
-    margin-bottom:8px;
-    border-radius:8px;
-    border:1px solid #eee;
-    cursor:pointer;
-    font-weight:bold;
-}
 
-#menu-btn{cursor:pointer;font-size:20px;margin-right:15px;}
+#menu-btn{cursor:pointer;font-size:22px;margin-right:15px;}
 
 #setup-box{
     position:fixed;
@@ -101,64 +94,32 @@ body{
     justify-content:center;
     z-index:2000;
     gap:12px;
+    padding: 20px;
 }
-#setup-box input{
-    width:100%;
-    max-width:300px;
-    padding:12px;
-    border-radius:25px;
-    border:none;
-    text-align:center;
-}
-#setup-box button{
-    padding:12px 30px;
-    background:#128c7e;
-    color:white;
-    border:none;
-    border-radius:25px;
-    font-weight:bold;
-}
+#setup-box input{ width:100%; max-width:300px; padding:12px; border-radius:25px; border:none; text-align:center; outline: none; }
+#setup-box button{ padding:12px 35px; background:#128c7e; color:white; border:none; border-radius:25px; font-weight:bold; cursor: pointer; }
 
-#input-area{
-    background:#075e54;
-    padding:8px 12px;
-    display:flex;
-    gap:8px;
-    position:fixed;
-    bottom:0;
-    width:100%;
-}
-#message-input{
-    flex:1;
-    border-radius:20px;
-    border:none;
-    padding:10px 15px;
-    font-size:15px;
-}
-#send-btn{
-    background:#128c7e;
-    color:white;
-    border:none;
-    border-radius:50%;
-    width:45px;
-    height:45px;
-    font-size:20px;
-}
+#input-area{ background:#075e54; padding:8px 12px; display:flex; gap:8px; position:fixed; bottom:0; width:100%; align-items: center; }
+#message-input{ flex:1; border-radius:20px; border:none; padding:10px 15px; font-size:15px; outline: none; }
+#send-btn{ background:#128c7e; color:white; border:none; border-radius:50%; width:44px; height:44px; font-size:20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 </style>
 </head>
 
 <body>
 
 <div id="setup-box">
-<h2>Secure Login</h2>
+<h2>Secure Chat</h2>
 <input id="user-name" placeholder="Your Name">
 <input id="room-pass" placeholder="Room Password">
 <input id="private-key" placeholder="Private Key (Optional)">
-<button onclick="startChat()">Enter Chat</button>
+<button onclick="startChat()">Join Chat</button>
 </div>
 
 <div id="pin-sidebar">
-<div class="pinned-user-item" onclick="toggleSidebar()">✕ Close</div>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h3 style="margin: 0; color: #075e54;">Pinned Members</h3>
+    <span onclick="toggleSidebar()" style="cursor:pointer; font-weight:bold; font-size: 20px;">✕</span>
+</div>
 <div id="pinned-users-list"></div>
 </div>
 
@@ -170,7 +131,7 @@ body{
 <div id="chat-container"></div>
 
 <div id="input-area">
-<input id="message-input" placeholder="Type message">
+<input id="message-input" placeholder="Type message or code...">
 <button id="send-btn" onclick="sendMessage()">➔</button>
 </div>
 
@@ -187,65 +148,78 @@ const db=firebase.database();
 let peer,myName,roomPass,myTag;
 let connections={},chatHistory=[];
 
+// ✅ কোডকে লেখা হিসেবে দেখানোর জন্য ফাংশন
+function escapeHTML(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 function toggleSidebar(){
-document.getElementById('pin-sidebar').classList.toggle('open');
+    document.getElementById('pin-sidebar').classList.toggle('open');
 }
 
 function startChat(){
-myName=user-name.value.trim();
-roomPass=room-pass.value.trim();
-if(!myName||!roomPass)return alert("Fill all");
-myTag="#"+Math.floor(Math.random()*9000+1000);
-setup-box.style.display="none";
-room-info.innerHTML=`<div id="status-dot"></div> Room: ${roomPass}`;
+    myName=document.getElementById('user-name').value.trim();
+    roomPass=document.getElementById('room-pass').value.trim();
+    if(!myName||!roomPass)return alert("Fill all fields");
+    myTag="#"+Math.floor(Math.random()*9000+1000);
+    document.getElementById('setup-box').style.display="none";
+    document.getElementById('room-info').innerHTML=`<div id="status-dot"></div> Room: ${roomPass}`;
 
-peer=new Peer();
-peer.on('open',id=>{
-const ref=db.ref("rooms/"+roomPass+"/"+id);
-ref.set({id,name:myName,tag:myTag});
-ref.onDisconnect().remove();
-db.ref("rooms/"+roomPass).on("value",snap=>{
-const u=snap.val()||{};
-for(let k in u)if(k!==id&&!connections[k])setupConn(peer.connect(k));
-});
-});
-peer.on('connection',setupConn);
+    peer=new Peer();
+    peer.on('open',id=>{
+        const ref=db.ref("rooms/"+roomPass+"/"+id);
+        ref.set({id,name:myName,tag:myTag});
+        ref.onDisconnect().remove();
+        db.ref("rooms/"+roomPass).on("value",snap=>{
+            const u=snap.val()||{};
+            for(let k in u)if(k!==id&&!connections[k])setupConn(peer.connect(k));
+        });
+    });
+    peer.on('connection',setupConn);
 }
 
 function setupConn(conn){
-conn.on('open',()=>connections[conn.peer]=conn);
-conn.on('data',d=>saveMsg(d,d.sender===myName?'mine':'others'));
+    conn.on('open',()=>connections[conn.peer]=conn);
+    conn.on('data',d=>saveMsg(d,d.sender===myName?'mine':'others'));
 }
 
 function sendMessage(){
-const input=message-input;
-if(!input.value.trim())return;
-const msg={mid:Date.now(),sender:myName,tag:myTag,text:input.value,time:new Date().toLocaleTimeString()};
-for(let k in connections)connections[k].send(msg);
-saveMsg(msg,'mine');
-input.value='';
+    const input=document.getElementById('message-input');
+    if(!input.value.trim())return;
+    const msg={mid:Date.now(),sender:myName,tag:myTag,text:input.value,time:new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})};
+    for(let k in connections)connections[k].send(msg);
+    saveMsg(msg,'mine');
+    input.value='';
 }
 
 function saveMsg(msg,type){
-msg.msgType=type;
-chatHistory.push(msg);
-renderAll();
+    msg.msgType=type;
+    chatHistory.push(msg);
+    renderAll();
 }
 
 function renderAll(){
-const c=chat-container;
-c.innerHTML='';
-chatHistory.forEach(m=>{
-const d=document.createElement('div');
-d.className=`msg ${m.msgType}`;
-d.innerHTML=`<div class="sender">${m.sender} <span class="user-tag">${m.tag}</span></div>
-<div>${m.text}</div><span class="time">${m.time}</span>`;
-c.appendChild(d);
-});
-c.scrollTop=c.scrollHeight;
+    const c=document.getElementById('chat-container');
+    c.innerHTML='';
+    chatHistory.forEach(m=>{
+        const wrapper = document.createElement('div');
+        wrapper.className = `msg-wrapper ${m.msgType === 'mine' ? 'mine-wrapper' : 'others-wrapper'}`;
+        
+        const d=document.createElement('div');
+        d.className=`msg ${m.msgType}`;
+        d.innerHTML=`<div class="sender">${escapeHTML(m.sender)} <span class="user-tag">${m.tag}</span></div>
+        <div style="word-break: break-all;">${escapeHTML(m.text)}</div><span class="time">${m.time}</span>`;
+        
+        wrapper.appendChild(d);
+        c.appendChild(wrapper);
+    });
+    c.scrollTop=c.scrollHeight;
 }
 
-message-input.addEventListener('keypress',e=>{if(e.key==="Enter")sendMessage();});
+document.getElementById('message-input').addEventListener('keypress',e=>{if(e.key==="Enter")sendMessage();});
 </script>
 </body>
-</html>
+    </html>
+    

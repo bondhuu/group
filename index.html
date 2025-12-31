@@ -1,77 +1,240 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Secure P2P Chat - Slim Mode</title>
-    
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Secure P2P Chat - Slim Mode</title>
 
-    <style>
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
-        #header { background: #075e54; color: white; padding: 12px; display: flex; align-items: center; z-index: 1000; position: sticky; top: 0; }
-        #room-info { font-size: 14px; font-weight: bold; flex: 1; display: flex; align-items: center; gap: 8px; }
-        #status-dot { width: 10px; height: 10px; background: #ff4d4d; border-radius: 50%; }
-        
-        #chat-container { flex: 1; overflow-y: auto; padding: 12px; padding-bottom: 90px; display: flex; flex-direction: column; gap: 6px; }
-        
-        /* 🔥 THE FIX: Compact Bubble Logic */
-        .msg { 
-            display: inline-block; /* এটি বাবলকে লেখার সমান চওড়া করে */
-            max-width: 80%; 
-            min-width: 60px; /* খুব ছোট মেসেজের জন্য নূন্যতম জায়গা */
-            width: auto; 
-            padding: 6px 10px; 
-            border-radius: 10px; 
-            font-size: 14px; 
-            position: relative; 
-            box-shadow: 0 1px 1px rgba(0,0,0,0.1); 
-            word-wrap: break-word; 
-            white-space: pre-wrap;
-            line-height: 1.4;
-        }
-        
-        .mine { align-self: flex-end; background: #dcf8c6; border-top-right-radius: 2px; }
-        .others { align-self: flex-start; background: white; border-top-left-radius: 2px; }
-        
-        .sender { font-size: 11px; font-weight: bold; color: #128c7e; cursor: pointer; margin-bottom: 2px; display: block; }
-        .user-tag { color: #888; font-size: 9px; font-weight: normal; }
-        .time { font-size: 9px; color: #888; text-align: right; margin-top: 3px; display: block; }
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
-        /* Sidebar & Others */
-        #pin-sidebar { position: fixed; left: -260px; top: 0; bottom: 0; width: 250px; background: #f4f7f6; z-index: 2500; transition: 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.2); padding: 20px; }
-        #pin-sidebar.open { left: 0; }
-        .sidebar-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; margin-bottom: 15px; padding-bottom: 10px; }
-        .pinned-user-item { padding: 12px; background: white; margin-bottom: 8px; border-radius: 8px; cursor: pointer; border: 1px solid #eee; font-weight: bold; }
-        #menu-btn { cursor: pointer; font-size: 20px; margin-right: 15px; }
-        #filter-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; flex-direction: column; padding: 20px; }
-        #filter-content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-top: 10px; }
-        #setup-box { position: fixed; inset: 0; background: #075e54; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; gap: 12px; padding: 25px; }
-        #setup-box input { width: 100%; max-width: 300px; padding: 12px; border-radius: 25px; border: none; text-align: center; outline: none; margin-bottom: 5px; }
-        #setup-box button { padding: 12px 30px; background: #128c7e; color: white; border: none; border-radius: 25px; cursor: pointer; font-weight: bold; }
-        #input-area { background: #075e54; padding: 8px 12px; display: flex; gap: 8px; position: fixed; bottom: 0; width: 100%; align-items: center; }
-        #message-input { flex: 1; border-radius: 20px; border: none; padding: 10px 15px; outline: none; font-size: 15px; }
-        #send-btn { background: #128c7e; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-    </style>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{
+    font-family:'Segoe UI',sans-serif;
+    background:#e5ddd5;
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    overflow:hidden;
+}
+
+#header{
+    background:#075e54;
+    color:white;
+    padding:12px;
+    display:flex;
+    align-items:center;
+    position:sticky;
+    top:0;
+    z-index:1000;
+}
+#room-info{
+    font-size:14px;
+    font-weight:bold;
+    flex:1;
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+#status-dot{
+    width:10px;
+    height:10px;
+    background:#ff4d4d;
+    border-radius:50%;
+}
+
+#chat-container{
+    flex:1;
+    overflow-y:auto;
+    padding:12px;
+    padding-bottom:90px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+}
+
+/* ✅ FIXED COMPACT MESSAGE BUBBLE */
+.msg{
+    display:inline-flex;          /* FIX */
+    flex-direction:column;        /* FIX */
+    max-width:fit-content;        /* FIX */
+    padding:6px 10px;
+    border-radius:10px;
+    font-size:14px;
+    position:relative;
+    box-shadow:0 1px 1px rgba(0,0,0,0.1);
+    word-break:break-word;
+    white-space:pre-wrap;
+    line-height:1.4;
+}
+
+.mine{
+    align-self:flex-end;
+    background:#dcf8c6;
+    border-top-right-radius:2px;
+}
+.others{
+    align-self:flex-start;
+    background:white;
+    border-top-left-radius:2px;
+}
+
+.sender{
+    font-size:11px;
+    font-weight:bold;
+    color:#128c7e;
+    cursor:pointer;
+    margin-bottom:2px;
+}
+.user-tag{
+    color:#888;
+    font-size:9px;
+    font-weight:normal;
+}
+.time{
+    font-size:9px;
+    color:#888;
+    align-self:flex-end;
+    margin-top:3px;
+}
+
+/* Sidebar & Others */
+#pin-sidebar{
+    position:fixed;
+    left:-260px;
+    top:0;
+    bottom:0;
+    width:250px;
+    background:#f4f7f6;
+    z-index:2500;
+    transition:0.3s;
+    box-shadow:2px 0 10px rgba(0,0,0,0.2);
+    padding:20px;
+}
+#pin-sidebar.open{left:0;}
+.sidebar-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-bottom:1px solid #ddd;
+    margin-bottom:15px;
+    padding-bottom:10px;
+}
+.pinned-user-item{
+    padding:12px;
+    background:white;
+    margin-bottom:8px;
+    border-radius:8px;
+    cursor:pointer;
+    border:1px solid #eee;
+    font-weight:bold;
+}
+#menu-btn{
+    cursor:pointer;
+    font-size:20px;
+    margin-right:15px;
+}
+
+#filter-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.9);
+    z-index:3000;
+    flex-direction:column;
+    padding:20px;
+}
+#filter-content{
+    flex:1;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    padding-top:10px;
+}
+
+#setup-box{
+    position:fixed;
+    inset:0;
+    background:#075e54;
+    color:white;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    z-index:2000;
+    gap:12px;
+    padding:25px;
+}
+#setup-box input{
+    width:100%;
+    max-width:300px;
+    padding:12px;
+    border-radius:25px;
+    border:none;
+    text-align:center;
+    outline:none;
+}
+#setup-box button{
+    padding:12px 30px;
+    background:#128c7e;
+    color:white;
+    border:none;
+    border-radius:25px;
+    cursor:pointer;
+    font-weight:bold;
+}
+
+#input-area{
+    background:#075e54;
+    padding:8px 12px;
+    display:flex;
+    gap:8px;
+    position:fixed;
+    bottom:0;
+    width:100%;
+    align-items:center;
+}
+#message-input{
+    flex:1;
+    border-radius:20px;
+    border:none;
+    padding:10px 15px;
+    outline:none;
+    font-size:15px;
+}
+#send-btn{
+    background:#128c7e;
+    color:white;
+    border:none;
+    border-radius:50%;
+    width:45px;
+    height:45px;
+    font-size:20px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+}
+</style>
 </head>
 <body>
 
 <div id="setup-box">
-    <h2 style="margin-bottom:20px;">Secure Login</h2>
-    <input type="text" id="user-name" placeholder="Your Name">
-    <input type="text" id="room-pass" placeholder="Room Password">
-    <input type="text" id="private-key" placeholder="Private Key (Optional)">
+    <h2>Secure Login</h2>
+    <input id="user-name" placeholder="Your Name">
+    <input id="room-pass" placeholder="Room Password">
+    <input id="private-key" placeholder="Private Key (Optional)">
     <button onclick="startChat()">Enter Chat</button>
 </div>
 
 <div id="pin-sidebar">
     <div class="sidebar-header">
-        <h3 style="margin:0; color:#075e54;">Pinned Members</h3>
-        <span onclick="toggleSidebar()" style="cursor:pointer; font-weight:bold; font-size: 20px;">✕</span>
+        <h3>Pinned Members</h3>
+        <span onclick="toggleSidebar()">✕</span>
     </div>
     <div id="pinned-users-list"></div>
 </div>
@@ -84,165 +247,99 @@
 <div id="chat-container"></div>
 
 <div id="input-area">
-    <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
+    <input id="message-input" placeholder="Type a message..." autocomplete="off">
     <button id="send-btn" onclick="sendMessage()">➔</button>
 </div>
 
 <div id="filter-overlay">
-    <div style="display:flex; justify-content:space-between; color:white; border-bottom:1px solid #555; padding-bottom:10px;">
-        <h3 id="filter-title" style="margin:0;">User Feed</h3>
-        <button onclick="document.getElementById('filter-overlay').style.display='none'" style="background:red; border:none; color:white; border-radius:5px; padding: 5px 15px;">Close</button>
+    <div style="display:flex;justify-content:space-between;color:white;border-bottom:1px solid #555;padding-bottom:10px;">
+        <h3 id="filter-title">User Feed</h3>
+        <button onclick="filter-overlay.style.display='none'">Close</button>
     </div>
     <div id="filter-content"></div>
 </div>
 
 <script>
-    const firebaseConfig = {
-        apiKey: "AIzaSyDZ0i_k2IFXOcXeGwrD2tZWQJvR0_Ztgd8",
-        authDomain: "group-e14e4.firebaseapp.com",
-        databaseURL: "https://group-e14e4-default-rtdb.firebaseio.com",
-        projectId: "group-e14e4",
-        storageBucket: "group-e14e4.firebasestorage.app"
+const firebaseConfig={
+    apiKey:"AIzaSyDZ0i_k2IFXOcXeGwrD2tZWQJvR0_Ztgd8",
+    databaseURL:"https://group-e14e4-default-rtdb.firebaseio.com"
+};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+
+let peer,myName,roomPass,myPrivateKey,myTag;
+let connections={},chatHistory=[];
+let pinnedUsers=JSON.parse(localStorage.getItem('pinned_users_v3'))||[];
+
+function escapeHTML(str){
+    const d=document.createElement('div');
+    d.textContent=str;
+    return d.innerHTML;
+}
+
+function toggleSidebar(){
+    document.getElementById('pin-sidebar').classList.toggle('open');
+}
+
+function startChat(){
+    myName=user-name.value.trim();
+    roomPass=room-pass.value.trim();
+    myPrivateKey=private-key.value.trim()||Math.random().toString(36);
+    if(!myName||!roomPass)return alert("Fill all fields");
+
+    myTag="#"+Array.from(myPrivateKey).reduce((a,b)=>a+b.charCodeAt(0),0).toString().slice(-4);
+    setup-box.style.display="none";
+    room-info.innerHTML=`<div id="status-dot"></div> Room: ${roomPass}`;
+
+    peer=new Peer();
+    peer.on('open',id=>{
+        const ref=db.ref('p2p/'+roomPass+'/'+id);
+        ref.set({id,name:myName,tag:myTag});
+        ref.onDisconnect().remove();
+
+        db.ref('p2p/'+roomPass).on('value',s=>{
+            const users=s.val()||{};
+            for(let uid in users)
+                if(uid!==id&&!connections[uid])
+                    setupConn(peer.connect(uid));
+        });
+    });
+    peer.on('connection',setupConn);
+}
+
+function setupConn(conn){
+    conn.on('open',()=>connections[conn.peer]=conn);
+    conn.on('data',m=>addMsg(m,m.sender===myName?'mine':'others'));
+    conn.on('close',()=>delete connections[conn.peer]);
+}
+
+function sendMessage(){
+    if(!message-input.value.trim())return;
+    const msg={
+        mid:Date.now(),
+        sender:myName,
+        tag:myTag,
+        text:message-input.value,
+        time:new Date().toLocaleTimeString([],{
+            hour:'2-digit',minute:'2-digit'
+        })
     };
+    for(let id in connections)connections[id].send(msg);
+    addMsg(msg,'mine');
+    message-input.value='';
+}
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    let peer, myName, roomPass, myPrivateKey, myTag;
-    let connections = {};
-    let chatHistory = [];
-    let pinnedUsers = JSON.parse(localStorage.getItem('pinned_users_v3')) || [];
-
-    function escapeHTML(str) {
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
-    }
-
-    function toggleSidebar() { document.getElementById('pin-sidebar').classList.toggle('open'); }
-
-    function startChat() {
-        myName = document.getElementById('user-name').value.trim();
-        roomPass = document.getElementById('room-pass').value.trim();
-        myPrivateKey = document.getElementById('private-key').value.trim() || 'SEC-'+Math.random().toString(36).substr(2,9).toUpperCase();
-        if(!myName || !roomPass) return alert("Fill all fields!");
-
-        myTag = "#" + Array.from(myPrivateKey).reduce((a, b) => a + b.charCodeAt(0), 0).toString().slice(-4);
-        document.getElementById('setup-box').style.display = 'none';
-        document.getElementById('room-info').innerHTML = `<div id="status-dot"></div> Room: ${roomPass}`;
-
-        chatHistory = JSON.parse(localStorage.getItem('p2p_final_'+roomPass)) || [];
-        renderAll();
-        updatePinnedSidebar();
-
-        peer = new Peer();
-        peer.on('open', id => {
-            const ref = db.ref('p2p_pro_safe/'+roomPass).child(id);
-            ref.set({id, name: myName, tag: myTag});
-            ref.onDisconnect().remove();
-            db.ref('p2p_pro_safe/'+roomPass).on('value', snap => {
-                const users = snap.val();
-                for(let uid in users) if(uid !== id && !connections[uid]) setupConn(peer.connect(uid));
-            });
-        });
-        peer.on('connection', setupConn);
-    }
-
-    function setupConn(conn) {
-        conn.on('open', () => {
-            connections[conn.peer] = conn;
-            updateStatus(true);
-            conn.send({type: 'SYNC', history: chatHistory});
-        });
-        conn.on('data', data => {
-            if(data.type === 'SYNC') mergeData(data.history);
-            else if(!chatHistory.find(m => m.mid === data.mid)) saveMsg(data, 'others');
-        });
-        conn.on('close', () => { delete connections[conn.peer]; if(Object.keys(connections).length === 0) updateStatus(false); });
-    }
-
-    function updateStatus(on) { document.getElementById('status-dot').style.background = on ? '#00ff00' : '#ff4d4d'; }
-
-    function sendMessage() {
-        const input = document.getElementById('message-input');
-        if(!input.value.trim()) return;
-        const msg = { mid: Date.now()+Math.random(), sender: myName, tag: myTag, text: input.value, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) };
-        for(let id in connections) connections[id].send(msg);
-        saveMsg(msg, 'mine');
-        input.value = '';
-    }
-
-    function saveMsg(msg, type) {
-        msg.msgType = type;
-        chatHistory.unshift(msg);
-        localStorage.setItem('p2p_final_'+roomPass, JSON.stringify(chatHistory));
-        renderAll();
-    }
-
-    function mergeData(remote) {
-        let up = false;
-        remote.forEach(r => { if(!chatHistory.find(l => l.mid === r.mid)) { chatHistory.push(r); up = true; } });
-        if(up) { chatHistory.sort((a,b)=>b.mid-a.mid); localStorage.setItem('p2p_final_'+roomPass, JSON.stringify(chatHistory)); renderAll(); }
-    }
-
-    function renderAll() {
-        const container = document.getElementById('chat-container');
-        container.innerHTML = '';
-        chatHistory.forEach(m => {
-            const div = document.createElement('div');
-            div.className = `msg ${m.msgType || 'others'}`;
-            div.innerHTML = `
-                <div class="sender" onclick="askPin('${escapeHTML(m.sender)}', '${m.tag}')">
-                    ${escapeHTML(m.sender)} <span class="user-tag">${m.tag}</span>
-                </div>
-                <div>${escapeHTML(m.text)}</div>
-                <span class="time">${m.time}</span>
-            `;
-            container.appendChild(div);
-        });
-    }
-
-    function askPin(name, tag) {
-        if(tag === myTag) return;
-        if(confirm(`Pin ${name} to sidebar?`)) {
-            if(!pinnedUsers.find(u => u.tag === tag)) {
-                pinnedUsers.push({name, tag});
-                localStorage.setItem('pinned_users_v3', JSON.stringify(pinnedUsers));
-                updatePinnedSidebar();
-                toggleSidebar();
-            }
-        }
-    }
-
-    function updatePinnedSidebar() {
-        const list = document.getElementById('pinned-users-list');
-        list.innerHTML = '';
-        pinnedUsers.forEach(u => {
-            const div = document.createElement('div');
-            div.className = 'pinned-user-item';
-            div.innerText = `${u.name} ${u.tag}`;
-            div.onclick = () => showUserMessages(u.tag, u.name);
-            list.appendChild(div);
-        });
-    }
-
-    function showUserMessages(tag, name) {
-        const overlay = document.getElementById('filter-overlay');
-        const content = document.getElementById('filter-content');
-        document.getElementById('filter-title').innerText = "Messages: " + name;
-        content.innerHTML = '';
-        chatHistory.filter(m => m.tag === tag).forEach(m => {
-            const div = document.createElement('div');
-            div.className = "msg others";
-            div.style.alignSelf = "stretch";
-            div.style.width = "auto";
-            div.innerHTML = `<div>${escapeHTML(m.text)}</div><span class="time">${m.time}</span>`;
-            content.appendChild(div);
-        });
-        overlay.style.display = 'flex';
-    }
-
-    document.getElementById('message-input').addEventListener('keypress', e => { if(e.key === 'Enter') sendMessage(); });
+function addMsg(m,type){
+    const d=document.createElement('div');
+    d.className=`msg ${type}`;
+    d.innerHTML=`
+        <div class="sender">${escapeHTML(m.sender)} <span class="user-tag">${m.tag}</span></div>
+        <div>${escapeHTML(m.text)}</div>
+        <span class="time">${m.time}</span>
+    `;
+    chat-container.appendChild(d);
+    chat-container.scrollTop=chat-container.scrollHeight;
+}
 </script>
 </body>
 </html>

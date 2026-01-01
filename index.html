@@ -3,31 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Secure P2P - Secure Text Only</title>
+    <title>Secure Decentralized Chat (P2P)</title>
     
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        #header { 
-            background: #075e54; color: white; padding: 10px 12px; 
-            display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-            z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
+        #header { background: #075e54; color: white; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .header-left { display: flex; align-items: center; gap: 10px; }
         #menu-btn { cursor: pointer; font-size: 20px; padding: 5px; }
         #status-dot { width: 10px; height: 10px; background: #ff4d4d; border-radius: 50%; border: 1px solid white; }
         #room-txt { font-size: 14px; font-weight: bold; }
         #dots-menu-btn { font-size: 24px; cursor: pointer; padding: 0 5px; }
 
-        #input-area { 
-            background: #075e54; padding: 5px 12px 12px 12px; 
-            display: flex; align-items: center; gap: 8px; flex-shrink: 0; z-index: 999;
-        }
+        #input-area { background: #075e54; padding: 5px 12px 12px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; z-index: 999; }
         #message-input { flex: 1; padding: 10px 15px; border-radius: 20px; border: none; outline: none; font-size: 15px; background: white; }
         #send-btn { background: #128c7e; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
 
@@ -58,24 +50,24 @@
 <body>
 
 <div id="setup-box">
-    <h2 style="margin:0">Secure Chat</h2>
+    <h2 style="margin:0">D-Chat Pro</h2>
     <input type="text" id="user-name" placeholder="Name">
     <input type="text" id="room-pass" placeholder="Room Password">
     <input type="text" id="private-key" placeholder="Private Key">
-    <button type="button" onclick="startChat()">Enter Chat</button>
+    <button type="button" onclick="startChat()">Enter Decentralized Chat</button>
 </div>
 
 <div id="pin-sidebar">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h3 style="margin:0; color:#075e54;">Search User</h3>
+        <h3 style="margin:0; color:#075e54;">Global Search</h3>
         <span onclick="toggleSidebar()" style="cursor:pointer; font-size:24px;">✕</span>
     </div>
-    <input type="text" id="sidebar-search" placeholder="Search Name or #Tag..." oninput="renderAll()">
+    <input type="text" id="sidebar-search" placeholder="Search User or #Tag..." oninput="renderAll()">
 </div>
 
 <div id="manual-box">
     <div class="modal-inner">
-        <h4>Manual Connection</h4>
+        <h4>Relay Link</h4>
         <input type="text" id="manual-peer-id" placeholder="Paste Peer ID...">
         <button onclick="manualConnect()">Connect</button>
         <button onclick="toggleManual(false)" style="background:#888; margin-top:5px;">Close</button>
@@ -87,7 +79,7 @@
     <div class="header-left">
         <span id="menu-btn" onclick="toggleSidebar()">☰</span>
         <div id="status-dot"></div> 
-        <span id="room-txt">Room: ---</span>
+        <span id="room-txt">Stable P2P</span>
     </div>
     <span id="dots-menu-btn" onclick="toggleManual(true)">⋮</span>
 </div>
@@ -102,63 +94,74 @@
 </div>
 
 <script>
-    const firebaseConfig = {
-        apiKey: "AIzaSyDZ0i_k2IFXOcXeGwrD2tZWQJvR0_Ztgd8",
-        authDomain: "group-e14e4.firebaseapp.com",
-        databaseURL: "https://group-e14e4-default-rtdb.firebaseio.com",
-        projectId: "group-e14e4"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
+    // Gun.js (বিটকয়েনের মতো নোড-টু-নোড ডাটাবেজ)
+    const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']); 
+    
     let peer, myName, roomPass, myTag, myPeerID;
     let connections = {}, chatHistory = [];
 
-    // স্পেশাল ক্যারেক্টার ফিল্টার করার ফাংশন (XSS Protection)
-    function escapeHTML(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
+    function escapeHTML(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
     function toggleSidebar() { document.getElementById('pin-sidebar').classList.toggle('open'); }
     function toggleManual(show) { 
         document.getElementById('manual-box').style.display = show ? 'flex' : 'none'; 
-        if(show) document.getElementById('my-id-display').innerText = "My ID: " + (myPeerID || "Loading...");
+        if(show) document.getElementById('my-id-display').innerText = "Global ID: " + (myPeerID || "Broadcasting...");
     }
 
     async function startChat() {
         myName = document.getElementById('user-name').value.trim();
         roomPass = document.getElementById('room-pass').value.trim();
         let key = document.getElementById('private-key').value.trim();
-        if(!myName || !roomPass || !key) return alert("Required!");
+        if(!myName || !roomPass || !key) return alert("All fields required!");
 
         myTag = "#" + Array.from(key).reduce((a, b) => a + b.charCodeAt(0), 0).toString().slice(-4);
         document.getElementById('setup-box').style.display = 'none';
         document.getElementById('room-txt').innerText = "Room: " + roomPass;
 
-        chatHistory = JSON.parse(localStorage.getItem('chat_vFinal_'+roomPass)) || [];
+        chatHistory = JSON.parse(localStorage.getItem('chat_d_v1_'+roomPass)) || [];
         renderAll();
         initPeer();
     }
 
+    
+
     function initPeer() {
-        peer = new Peer({ config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]}});
+        // শক্তিশালী গ্লোবাল রিলে কনফিগারেশন
+        const config = {
+            'iceServers': [
+                { 'urls': 'stun:stun.l.google.com:19302' },
+                { 'urls': 'stun:stun1.l.google.com:19302' },
+                { 'urls': 'stun:global.stun.twilio.com:3478' },
+                { 'urls': 'stun:stun.services.mozilla.com' }
+            ],
+            'iceCandidatePoolSize': 10
+        };
+
+        peer = new Peer({ config: config });
+
         peer.on('open', id => {
             myPeerID = id;
-            const myRef = db.ref('p2p_active/'+roomPass).child(id);
-            myRef.set({id, name: myName, tag: myTag, time: Date.now()});
-            myRef.onDisconnect().remove();
+            // বিটকয়েন স্টাইল নোড ঘোষণা (Gun.js ব্যবহার করে)
+            gun.get('p2p_chat_rooms').get(roomPass).get(id).put({
+                id: id, name: myName, tag: myTag, time: Date.now()
+            });
 
-            db.ref('p2p_active/'+roomPass).on('value', snap => {
-                const users = snap.val() || {};
-                for (let k in users) if (k !== id && !connections[k]) setupConn(peer.connect(k));
+            // রিয়েল টাইম নোড লিসেনিং
+            gun.get('p2p_chat_rooms').get(roomPass).map().on((user, id) => {
+                if (id !== myPeerID && !connections[id] && user) {
+                    setupConn(peer.connect(id, { reliable: true }));
+                }
             });
         });
+
         peer.on('connection', setupConn);
+        peer.on('error', (err) => {
+            console.log("Peer Error:", err.type);
+            updateStatus();
+        });
     }
 
     function setupConn(conn) {
+        if(!conn) return;
         conn.on('open', () => {
             connections[conn.peer] = conn;
             updateStatus();
@@ -194,7 +197,7 @@
         if(chatHistory.find(m => m.mid === msg.mid)) return;
         msg.msgType = type;
         chatHistory.unshift(msg); 
-        localStorage.setItem('chat_vFinal_'+roomPass, JSON.stringify(chatHistory));
+        localStorage.setItem('chat_d_v1_'+roomPass, JSON.stringify(chatHistory));
         renderAll();
     }
 
@@ -203,7 +206,7 @@
         remote.forEach(r => { if(!chatHistory.find(l => l.mid === r.mid)) { chatHistory.push(r); changed = true; }});
         if(changed) {
             chatHistory.sort((a,b) => b.mid - a.mid);
-            localStorage.setItem('chat_vFinal_'+roomPass, JSON.stringify(chatHistory));
+            localStorage.setItem('chat_d_v1_'+roomPass, JSON.stringify(chatHistory));
             renderAll();
         }
     }
@@ -212,16 +215,10 @@
         const query = document.getElementById('sidebar-search').value.trim().toLowerCase();
         const list = document.getElementById('msg-list');
         list.innerHTML = '';
-
-        const displayList = query 
-            ? chatHistory.filter(m => m.sender.toLowerCase().includes(query) || m.tag.includes(query)) 
-            : chatHistory;
-
+        const displayList = query ? chatHistory.filter(m => m.sender.toLowerCase().includes(query) || m.tag.includes(query)) : chatHistory;
         displayList.forEach(m => {
             const w = document.createElement('div');
             w.className = `msg-wrapper ${m.msgType === 'mine' ? 'mine-wrapper' : 'others-wrapper'}`;
-            
-            // এখানে textContent ব্যবহারের মতো নিরাপত্তা দেওয়া হয়েছে escapeHTML দিয়ে
             w.innerHTML = `<div class="msg ${m.msgType}">
                 <span class="sender">${escapeHTML(m.sender)} <small style="opacity:0.6">${escapeHTML(m.tag)}</small></span>
                 <div>${escapeHTML(m.text)}</div>

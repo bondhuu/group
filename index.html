@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Secure Decentralized Chat (P2P)</title>
+    <title>Global P2P Secure Chat</title>
     
     <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -11,22 +11,12 @@
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
-        #header { background: #075e54; color: white; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        #header { background: #075e54; color: white; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; z-index: 1000; }
         .header-left { display: flex; align-items: center; gap: 10px; }
-        #menu-btn { cursor: pointer; font-size: 20px; padding: 5px; }
         #status-dot { width: 10px; height: 10px; background: #ff4d4d; border-radius: 50%; border: 1px solid white; }
-        #room-txt { font-size: 14px; font-weight: bold; }
-        #dots-menu-btn { font-size: 24px; cursor: pointer; padding: 0 5px; }
-
-        #input-area { background: #075e54; padding: 5px 12px 12px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; z-index: 999; }
+        #input-area { background: #075e54; padding: 5px 12px 12px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         #message-input { flex: 1; padding: 10px 15px; border-radius: 20px; border: none; outline: none; font-size: 15px; background: white; }
-        #send-btn { background: #128c7e; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
-
-        #pin-sidebar { position: fixed; left: -280px; top: 0; bottom: 0; width: 260px; background: #f4f7f6; z-index: 2500; transition: 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.2); padding: 20px; }
-        #pin-sidebar.open { left: 0; }
-        #sidebar-search { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; outline: none; margin-bottom: 15px; }
-
+        #send-btn { background: #128c7e; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         #chat-container { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
         .msg-wrapper { display: flex; width: 100%; margin: 1px 0; }
         .mine-wrapper { justify-content: flex-end; padding-left: 15%; }
@@ -36,52 +26,28 @@
         .others { background: white; border-top-left-radius: 2px; }
         .sender { font-size: 11px; font-weight: bold; color: #128c7e; display: block; margin-bottom: 2px; }
         .time { font-size: 9px; color: #888; text-align: right; display: block; margin-top: 4px; }
-
-        #manual-box { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 4000; align-items: center; justify-content: center; }
-        .modal-inner { background: white; padding: 20px; border-radius: 15px; width: 90%; max-width: 300px; text-align: center; }
-        .modal-inner input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; }
-        .modal-inner button { padding: 10px 20px; background: #075e54; color: white; border: none; border-radius: 8px; }
-
         #setup-box { position: fixed; inset: 0; background: #075e54; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5000; gap: 15px; padding: 30px; }
         #setup-box input { width: 100%; max-width: 300px; padding: 12px; border-radius: 25px; border: none; text-align: center; }
-        #setup-box button { width: 100%; max-width: 300px; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 25px; font-weight: bold; }
+        #setup-box button { width: 100%; max-width: 300px; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div id="setup-box">
-    <h2 style="margin:0">D-Chat Pro</h2>
-    <input type="text" id="user-name" placeholder="Name">
-    <input type="text" id="room-pass" placeholder="Room Password">
-    <input type="text" id="private-key" placeholder="Private Key">
-    <button type="button" onclick="startChat()">Enter Decentralized Chat</button>
-</div>
-
-<div id="pin-sidebar">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h3 style="margin:0; color:#075e54;">Global Search</h3>
-        <span onclick="toggleSidebar()" style="cursor:pointer; font-size:24px;">✕</span>
-    </div>
-    <input type="text" id="sidebar-search" placeholder="Search User or #Tag..." oninput="renderAll()">
-</div>
-
-<div id="manual-box">
-    <div class="modal-inner">
-        <h4>Relay Link</h4>
-        <input type="text" id="manual-peer-id" placeholder="Paste Peer ID...">
-        <button onclick="manualConnect()">Connect</button>
-        <button onclick="toggleManual(false)" style="background:#888; margin-top:5px;">Close</button>
-        <div id="my-id-display" style="margin-top:15px; font-size:10px; color:#128c7e; word-break: break-all;"></div>
-    </div>
+    <h2 style="margin:0">D-Chat Secure</h2>
+    <input type="text" id="user-name" placeholder="Enter Your Name">
+    <input type="text" id="room-pass" placeholder="Room (Ex: Bangladesh)">
+    <input type="text" id="private-key" placeholder="Private Key (Secret)">
+    <button type="button" onclick="startChat()">Enter Global Chat</button>
 </div>
 
 <div id="header">
     <div class="header-left">
-        <span id="menu-btn" onclick="toggleSidebar()">☰</span>
+        <span style="cursor:pointer; font-size:20px;">☰</span>
         <div id="status-dot"></div> 
         <span id="room-txt">Stable P2P</span>
     </div>
-    <span id="dots-menu-btn" onclick="toggleManual(true)">⋮</span>
+    <span style="font-size: 24px; cursor: pointer;">⋮</span>
 </div>
 
 <div id="input-area">
@@ -94,44 +60,43 @@
 </div>
 
 <script>
-    // Gun.js (বিটকয়েনের মতো নোড-টু-নোড ডাটাবেজ)
-    const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']); 
+    // Gun.js ডিসেন্ট্রালাইজড ডাটাবেজ
+    const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
     
     let peer, myName, roomPass, myTag, myPeerID;
     let connections = {}, chatHistory = [];
 
     function escapeHTML(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
-    function toggleSidebar() { document.getElementById('pin-sidebar').classList.toggle('open'); }
-    function toggleManual(show) { 
-        document.getElementById('manual-box').style.display = show ? 'flex' : 'none'; 
-        if(show) document.getElementById('my-id-display').innerText = "Global ID: " + (myPeerID || "Broadcasting...");
-    }
 
     async function startChat() {
         myName = document.getElementById('user-name').value.trim();
         roomPass = document.getElementById('room-pass').value.trim();
         let key = document.getElementById('private-key').value.trim();
-        if(!myName || !roomPass || !key) return alert("All fields required!");
+        if(!myName || !roomPass || !key) return alert("Fill all fields!");
 
         myTag = "#" + Array.from(key).reduce((a, b) => a + b.charCodeAt(0), 0).toString().slice(-4);
         document.getElementById('setup-box').style.display = 'none';
-        document.getElementById('room-txt').innerText = "Room: " + roomPass;
-
-        chatHistory = JSON.parse(localStorage.getItem('chat_d_v1_'+roomPass)) || [];
+        
+        chatHistory = JSON.parse(localStorage.getItem('chat_vGlobal_'+roomPass)) || [];
         renderAll();
         initPeer();
     }
 
-    
-
     function initPeer() {
-        // শক্তিশালী গ্লোবাল রিলে কনফিগারেশন
+        // Metered.ca তথ্যগুলো এখানে সেট করা হয়েছে
         const config = {
             'iceServers': [
                 { 'urls': 'stun:stun.l.google.com:19302' },
-                { 'urls': 'stun:stun1.l.google.com:19302' },
-                { 'urls': 'stun:global.stun.twilio.com:3478' },
-                { 'urls': 'stun:stun.services.mozilla.com' }
+                {
+                    'urls': 'turn:global.relay.metered.ca:443',
+                    'username': 'ogMlO2zrQ5hnPF4vBLk6CKz4IMkKuI0G5Lyw55FmxvDKCueh', 
+                    'credential': 'ogMlO2zrQ5hnPF4vBLk6CKz4IMkKuI0G5Lyw55FmxvDKCueh'
+                },
+                {
+                    'urls': 'turn:global.relay.metered.ca:80',
+                    'username': 'ogMlO2zrQ5hnPF4vBLk6CKz4IMkKuI0G5Lyw55FmxvDKCueh', 
+                    'credential': 'ogMlO2zrQ5hnPF4vBLk6CKz4IMkKuI0G5Lyw55FmxvDKCueh'
+                }
             ],
             'iceCandidatePoolSize': 10
         };
@@ -140,28 +105,21 @@
 
         peer.on('open', id => {
             myPeerID = id;
-            // বিটকয়েন স্টাইল নোড ঘোষণা (Gun.js ব্যবহার করে)
-            gun.get('p2p_chat_rooms').get(roomPass).get(id).put({
-                id: id, name: myName, tag: myTag, time: Date.now()
-            });
-
-            // রিয়েল টাইম নোড লিসেনিং
-            gun.get('p2p_chat_rooms').get(roomPass).map().on((user, id) => {
-                if (id !== myPeerID && !connections[id] && user) {
-                    setupConn(peer.connect(id, { reliable: true }));
+            // বিটকয়েন স্টাইল নোড পাবলিশিং
+            gun.get('rooms_v2').get(roomPass).get(id).put({ id, name: myName, tag: myTag, status: 'online' });
+            
+            gun.get('rooms_v2').get(roomPass).map().on((user, uid) => {
+                if (uid !== myPeerID && !connections[uid] && user && user.status === 'online') {
+                    setupConn(peer.connect(uid, { reliable: true }));
                 }
             });
         });
 
         peer.on('connection', setupConn);
-        peer.on('error', (err) => {
-            console.log("Peer Error:", err.type);
-            updateStatus();
-        });
+        peer.on('error', () => updateStatus());
     }
 
     function setupConn(conn) {
-        if(!conn) return;
         conn.on('open', () => {
             connections[conn.peer] = conn;
             updateStatus();
@@ -174,14 +132,9 @@
         conn.on('close', () => { delete connections[conn.peer]; updateStatus(); });
     }
 
-    function manualConnect() {
-        const otherID = document.getElementById('manual-peer-id').value.trim();
-        if(otherID) setupConn(peer.connect(otherID));
-        toggleManual(false);
-    }
-
     function updateStatus() {
-        document.getElementById('status-dot').style.background = Object.keys(connections).length > 0 ? '#00ff00' : '#ff4d4d';
+        const dot = document.getElementById('status-dot');
+        dot.style.background = Object.keys(connections).length > 0 ? '#00ff00' : '#ff4d4d';
     }
 
     function sendMessage() {
@@ -197,7 +150,7 @@
         if(chatHistory.find(m => m.mid === msg.mid)) return;
         msg.msgType = type;
         chatHistory.unshift(msg); 
-        localStorage.setItem('chat_d_v1_'+roomPass, JSON.stringify(chatHistory));
+        localStorage.setItem('chat_vGlobal_'+roomPass, JSON.stringify(chatHistory));
         renderAll();
     }
 
@@ -206,17 +159,15 @@
         remote.forEach(r => { if(!chatHistory.find(l => l.mid === r.mid)) { chatHistory.push(r); changed = true; }});
         if(changed) {
             chatHistory.sort((a,b) => b.mid - a.mid);
-            localStorage.setItem('chat_d_v1_'+roomPass, JSON.stringify(chatHistory));
+            localStorage.setItem('chat_vGlobal_'+roomPass, JSON.stringify(chatHistory));
             renderAll();
         }
     }
 
     function renderAll() {
-        const query = document.getElementById('sidebar-search').value.trim().toLowerCase();
         const list = document.getElementById('msg-list');
         list.innerHTML = '';
-        const displayList = query ? chatHistory.filter(m => m.sender.toLowerCase().includes(query) || m.tag.includes(query)) : chatHistory;
-        displayList.forEach(m => {
+        chatHistory.forEach(m => {
             const w = document.createElement('div');
             w.className = `msg-wrapper ${m.msgType === 'mine' ? 'mine-wrapper' : 'others-wrapper'}`;
             w.innerHTML = `<div class="msg ${m.msgType}">

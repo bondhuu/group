@@ -2,12 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Private Mesh - ana abdulloh57/</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        /* Fixed height issue for mobile browsers */
+        html, body { 
+            height: 100%; 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden; 
+            background: #e5ddd5;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body { display: flex; flex-direction: column; }
         
         #header { 
             background: #075e54; color: white; padding: 12px 15px; 
@@ -17,9 +28,15 @@
         .status-info { font-size: 11px; margin-top: 4px; opacity: 0.9; }
 
         #chat-area { 
-            flex: 1; overflow-y: auto; padding: 15px; 
-            display: flex; flex-direction: column; gap: 10px;
-            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); /* WhatsApp Background Pattern */
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 15px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px;
+            background-color: #e5ddd5;
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            background-blend-mode: overlay;
         }
 
         .msg { padding: 8px 12px; border-radius: 8px; max-width: 85%; word-wrap: break-word; font-size: 15px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
@@ -28,13 +45,43 @@
         .sender { font-size: 11px; font-weight: bold; color: #128c7e; display: block; margin-bottom: 3px; }
         .time { font-size: 10px; color: #888; float: right; margin-top: 5px; margin-left: 10px; }
 
+        /* Ensuring the input panel is always at the bottom */
         #input-panel { 
-            background: #f0f0f0; padding: 10px; 
-            display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+            background: #f0f0f0; 
+            padding: 10px 12px; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            flex-shrink: 0;
             border-top: 1px solid #ddd;
+            padding-bottom: env(safe-area-inset-bottom, 10px);
         }
-        #message { flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #ccc; outline: none; font-size: 15px; background: white; }
-        #send-btn { background: #128c7e; color: white; border: none; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        
+        #message { 
+            flex: 1; 
+            padding: 12px 15px; 
+            border-radius: 25px; 
+            border: 1px solid #ccc; 
+            outline: none; 
+            font-size: 16px; 
+            background: white; 
+        }
+        
+        #send-btn { 
+            background: #128c7e; 
+            color: white; 
+            border: none; 
+            width: 46px; 
+            height: 46px; 
+            border-radius: 50%; 
+            cursor: pointer; 
+            font-size: 20px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            flex-shrink: 0; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
 
         #setup-overlay { 
             position: fixed; inset: 0; background: #075e54; 
@@ -42,9 +89,8 @@
             align-items: center; justify-content: center; color: white; padding: 20px; 
         }
         .setup-box { width: 100%; max-width: 300px; text-align: center; }
-        .setup-box h2 { margin-bottom: 20px; }
-        .setup-input { width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 25px; border: none; outline: none; text-align: center; font-size: 15px; }
-        .setup-btn { width: 100%; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .setup-input { width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 25px; border: none; outline: none; text-align: center; font-size: 15px; }
+        .setup-btn { width: 100%; padding: 14px; background: #128c7e; color: white; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; font-size: 16px; }
     </style>
 </head>
 <body>
@@ -60,7 +106,7 @@
 
 <div id="header">
     <strong>Private Mesh Network</strong>
-    <div class="status-info">Status: <span id="status">Offline</span> | Active Nodes: <span id="peer-count">0</span></div>
+    <div class="status-info">Status: <span id="status">Offline</span> | Nodes: <span id="peer-count">0</span></div>
 </div>
 
 <div id="chat-area"></div>
@@ -73,47 +119,32 @@
 <script>
     let peer, myId, myName;
     let connections = {};
-    let chatHistory = JSON.parse(localStorage.getItem('private_mesh_v5')) || [];
+    let chatHistory = JSON.parse(localStorage.getItem('private_mesh_v6')) || [];
     
-    // ISOLATION NAMESPACE
-    const APP_NAMESPACE = "PRIVATE_MESH_V5_"; 
+    const APP_NAMESPACE = "PRIVATE_MESH_V6_"; 
     const MASTER_KEY_RAW = "ana abdulloh57/";
     const MASTER_ID = APP_NAMESPACE + btoa(MASTER_KEY_RAW).replace(/=/g, "").toLowerCase();
-
     const BOOTSTRAP_NODES = [MASTER_ID]; 
 
     function initNode() {
         myName = document.getElementById('user-name').value.trim();
         const keyInput = document.getElementById('secret-key').value.trim();
-        
         if(!myName || !keyInput) return alert("Fields cannot be empty!");
-
         myId = APP_NAMESPACE + btoa(keyInput).replace(/=/g, "").toLowerCase(); 
         document.getElementById('setup-overlay').style.display = 'none';
-        
         startPeer();
         renderInitialHistory();
     }
 
     function startPeer() {
-        peer = new Peer(myId, {
-            config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]}
-        });
-
+        peer = new Peer(myId, { config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]}});
         peer.on('open', id => {
             document.getElementById('status').innerText = "Online";
             document.getElementById('status').style.color = "#afffaf";
             tryToConnect();
         });
-
         peer.on('connection', setupConn);
-
-        peer.on('error', err => {
-            if(err.type === 'unavailable-id') {
-                alert("This ID is active elsewhere.");
-                location.reload();
-            }
-        });
+        peer.on('error', err => { if(err.type === 'unavailable-id') { alert("This ID is active elsewhere."); location.reload(); }});
     }
 
     function tryToConnect() {
@@ -124,33 +155,20 @@
             }
         });
     }
-
     setInterval(tryToConnect, 15000);
 
     function setupConn(conn) {
-        if (!conn.peer.startsWith(APP_NAMESPACE)) {
-            conn.close();
-            return;
-        }
-
+        if (!conn.peer.startsWith(APP_NAMESPACE)) { conn.close(); return; }
         conn.on('open', () => {
             connections[conn.peer] = conn;
             updatePeerCount();
             conn.send({type: 'SYNC', history: chatHistory});
         });
-
         conn.on('data', data => {
-            if(data.type === 'CHAT') {
-                handleIncomingChat(data.msg, conn.peer);
-            } else if(data.type === 'SYNC') {
-                mergeData(data.history);
-            }
+            if(data.type === 'CHAT') { handleIncomingChat(data.msg, conn.peer); } 
+            else if(data.type === 'SYNC') { mergeData(data.history); }
         });
-
-        conn.on('close', () => {
-            delete connections[conn.peer];
-            updatePeerCount();
-        });
+        conn.on('close', () => { delete connections[conn.peer]; updatePeerCount(); });
     }
 
     function handleIncomingChat(msg, senderPeerId) {
@@ -165,14 +183,12 @@
     function sendGossip() {
         const input = document.getElementById('message');
         if(!input.value.trim()) return;
-
         const msg = {
             mid: Date.now() + Math.random(),
             sender: myName,
             text: input.value,
             time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
         };
-
         renderMsg(msg, 'mine');
         chatHistory.push(msg);
         saveToLocal();
@@ -181,9 +197,7 @@
     }
 
     function relayToOthers(msg, excludeId) {
-        for(let id in connections) {
-            if(id !== excludeId) connections[id].send({type: 'CHAT', msg: msg});
-        }
+        for(let id in connections) { if(id !== excludeId) connections[id].send({type: 'CHAT', msg: msg}); }
     }
 
     function renderMsg(msg, type) {
@@ -209,20 +223,11 @@
                 updated = true;
             }
         });
-        if(updated) {
-            chatHistory.sort((a,b) => a.mid - b.mid);
-            saveToLocal();
-        }
+        if(updated) { chatHistory.sort((a,b) => a.mid - b.mid); saveToLocal(); }
     }
 
-    function saveToLocal() {
-        localStorage.setItem('private_mesh_v5', JSON.stringify(chatHistory));
-    }
-
-    function updatePeerCount() {
-        document.getElementById('peer-count').innerText = Object.keys(connections).length;
-    }
-
+    function saveToLocal() { localStorage.setItem('private_mesh_v6', JSON.stringify(chatHistory)); }
+    function updatePeerCount() { document.getElementById('peer-count').innerText = Object.keys(connections).length; }
     document.getElementById('message').addEventListener('keypress', e => { if(e.key === 'Enter') sendGossip(); });
 </script>
 

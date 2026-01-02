@@ -3,19 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Group Mesh - ana abdulloh57/</title>
+    <title>Private Mesh - ana abdulloh57/</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background: #e5ddd5; font-family: 'Segoe UI', sans-serif; }
         body { display: flex; flex-direction: column; }
         
-        #header { background: #075e54; color: white; padding: 12px 15px; text-align: center; flex-shrink: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        .group-tag { font-size: 10px; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 10px; display: inline-block; margin-top: 4px; }
+        #header { 
+            background: #075e54; color: white; padding: 12px 15px; 
+            text-align: center; flex-shrink: 0; z-index: 100;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
         .status-info { font-size: 11px; margin-top: 4px; opacity: 0.9; }
 
         #chat-area { 
-            flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px;
+            flex: 1; overflow-y: auto; padding: 15px; 
+            display: flex; flex-direction: column; gap: 10px;
             background-color: #e5ddd5;
             background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
             background-blend-mode: overlay;
@@ -27,11 +31,20 @@
         .sender { font-size: 11px; font-weight: bold; color: #128c7e; display: block; margin-bottom: 3px; }
         .time { font-size: 10px; color: #888; float: right; margin-top: 5px; margin-left: 10px; }
 
-        #input-panel { background: #f0f0f0; padding: 10px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; border-top: 1px solid #ddd; padding-bottom: env(safe-area-inset-bottom, 10px); }
+        #input-panel { 
+            background: #f0f0f0; padding: 10px 12px; 
+            display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+            border-top: 1px solid #ddd;
+            padding-bottom: env(safe-area-inset-bottom, 10px);
+        }
         #message { flex: 1; padding: 12px 15px; border-radius: 25px; border: 1px solid #ccc; outline: none; font-size: 16px; background: white; }
         #send-btn { background: #128c7e; color: white; border: none; width: 46px; height: 46px; border-radius: 50%; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
-        #setup-overlay { position: fixed; inset: 0; background: #075e54; z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; padding: 20px; }
+        #setup-overlay { 
+            position: fixed; inset: 0; background: #075e54; 
+            z-index: 2000; display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; color: white; padding: 20px; 
+        }
         .setup-box { width: 100%; max-width: 300px; text-align: center; }
         .setup-input { width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 25px; border: none; outline: none; text-align: center; font-size: 15px; }
         .setup-btn { width: 100%; padding: 14px; background: #128c7e; color: white; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; font-size: 16px; }
@@ -41,18 +54,16 @@
 
 <div id="setup-overlay">
     <div class="setup-box">
-        <h2 style="margin-bottom: 5px;">Group Mesh</h2>
-        <p style="font-size: 12px; opacity: 0.8; margin-bottom: 20px;">Decentralized Node ana abdulloh57/</p>
-        <input type="text" id="group-name" class="setup-input" placeholder="Enter Group Name (e.g. MyTeam)">
-        <input type="text" id="user-name" class="setup-input" placeholder="Enter Your Nickname">
-        <input type="password" id="secret-key" class="setup-input" placeholder="Personal Secret Key">
-        <button onclick="initNode()" class="setup-btn">Join Group</button>
+        <h2 style="margin-bottom: 20px;">Private Mesh</h2>
+        <input type="text" id="group-name" class="setup-input" placeholder="Group Name">
+        <input type="text" id="user-name" class="setup-input" placeholder="Enter Nickname">
+        <input type="password" id="secret-key" class="setup-input" placeholder="Secret Key (ana abdulloh57/)">
+        <button onclick="initNode()" class="setup-btn">Login to Node</button>
     </div>
 </div>
 
 <div id="header">
-    <strong>Group Mesh Network</strong><br>
-    <span id="display-group" class="group-tag">No Group</span>
+    <strong>Private Mesh Network</strong>
     <div class="status-info">Status: <span id="status">Offline</span> | Nodes: <span id="peer-count">0</span></div>
 </div>
 
@@ -68,7 +79,6 @@
     let connections = {};
     let chatHistory = [];
     
-    // Core Master ID Base
     const MASTER_KEY_RAW = "ana abdulloh57/";
 
     function initNode() {
@@ -76,19 +86,15 @@
         myName = document.getElementById('user-name').value.trim();
         const keyInput = document.getElementById('secret-key').value.trim();
 
-        if(!groupName || !myName || !keyInput) return alert("All fields are required!");
+        if(!groupName || !myName || !keyInput) return alert("Fields cannot be empty!");
 
-        // Local Storage unique to the group
         const storageKey = 'mesh_history_' + groupName;
         chatHistory = JSON.parse(localStorage.getItem(storageKey)) || [];
 
-        // Generate IDs based on GROUP + KEY
-        // This ensures people in different groups never connect
         myId = groupName + "_" + btoa(keyInput).replace(/=/g, "").toLowerCase(); 
         const masterId = groupName + "_" + btoa(MASTER_KEY_RAW).replace(/=/g, "").toLowerCase();
         
         window.activeMasterId = masterId;
-        document.getElementById('display-group').innerText = "Group: " + groupName.toUpperCase();
         document.getElementById('setup-overlay').style.display = 'none';
         
         startPeer();
@@ -103,10 +109,10 @@
             tryToConnect();
         });
         peer.on('connection', setupConn);
+        peer.on('error', err => { if(err.type === 'unavailable-id') { alert("This ID is active elsewhere."); location.reload(); }});
     }
 
     function tryToConnect() {
-        // Automatically try to connect to the Group Master
         if (window.activeMasterId !== myId && !connections[window.activeMasterId]) {
             const conn = peer.connect(window.activeMasterId, { reliable: true });
             setupConn(conn);
@@ -115,20 +121,16 @@
     setInterval(tryToConnect, 15000);
 
     function setupConn(conn) {
-        // Only allow connections from the same group prefix
         if (!conn.peer.startsWith(groupName + "_")) { conn.close(); return; }
-
         conn.on('open', () => {
             connections[conn.peer] = conn;
             updatePeerCount();
             conn.send({type: 'SYNC', history: chatHistory});
         });
-
         conn.on('data', data => {
             if(data.type === 'CHAT') handleIncomingChat(data.msg, conn.peer);
             else if(data.type === 'SYNC') mergeData(data.history);
         });
-
         conn.on('close', () => { delete connections[conn.peer]; updatePeerCount(); });
     }
 

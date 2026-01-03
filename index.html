@@ -3,70 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Country Chat | ana abdulloh57</title>
+    <title>Global P2P Chat | ana abdulloh57</title>
     <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
     <style>
         :root { --primary: #075e54; --secondary: #128c7e; --bg: #e5ddd5; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg); overflow: hidden; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg); display: flex; flex-direction: column; height: 100vh; }
         
-        /* Login Screen */
         #login-screen { position: fixed; inset: 0; background: white; display: flex; align-items: center; justify-content: center; z-index: 1000; }
         .card { padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-radius: 15px; width: 320px; text-align: center; }
         input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: var(--secondary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-
-        /* Main UI */
-        #main-app { display: none; flex-direction: column; height: 100vh; }
-        header { background: var(--primary); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        #chat-window { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
         
-        .msg { background: white; padding: 10px; border-radius: 10px; max-width: 85%; width: fit-content; align-self: flex-start; box-shadow: 0 1px 2px rgba(0,0,0,0.1); word-wrap: break-word; }
-        .msg b { color: #075e54; font-size: 0.9em; }
-        .msg .code { color: #888; font-size: 0.75em; margin-left: 5px; background: #eee; padding: 2px 5px; border-radius: 4px; }
+        header { background: var(--primary); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        #chat-window { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; padding-bottom: 80px; }
         
-        footer { padding: 15px; background: #f0f0f0; display: flex; gap: 10px; }
-        #msg-input { flex: 1; border-radius: 20px; border: 1px solid #ccc; padding: 10px 15px; }
+        .msg { background: white; padding: 10px; border-radius: 10px; max-width: 80%; width: fit-content; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .msg b { color: var(--secondary); font-size: 0.9em; }
+        .msg .code { color: #888; font-size: 0.7em; margin-left: 5px; background: #f0f0f0; padding: 2px 4px; border-radius: 3px; }
 
+        footer { position: fixed; bottom: 0; width: 100%; background: #f0f0f0; padding: 10px; display: flex; gap: 10px; box-sizing: border-box; align-items: center; }
+        #msg-input { flex: 1; padding: 12px 18px; border-radius: 25px; border: 1px solid #ccc; outline: none; }
+        
         #search-bar { background: #fff; padding: 10px; display: none; border-bottom: 1px solid #ddd; }
+        .send-btn { background: var(--secondary); color: white; border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; font-size: 20px; }
     </style>
 </head>
 <body>
 
     <div id="login-screen">
         <div class="card">
-            <h2 style="color: var(--primary)">Global Chat</h2>
+            <h2>গ্লোবাল চ্যাট</h2>
             <select id="country-select"></select>
             <input type="text" id="username" placeholder="আপনার নাম">
-            <input type="password" id="private-key" placeholder="প্রাইভেট কি (যেমন: ১২৩৪)">
-            <button onclick="login()">চ্যাটে প্রবেশ করুন</button>
+            <input type="password" id="private-key" placeholder="প্রাইভেট কি (Password)">
+            <button onclick="login()" style="width:100%; padding:12px; background:var(--secondary); color:white; border:none; border-radius:8px; cursor:pointer;">প্রবেশ করুন</button>
         </div>
     </div>
 
-    <div id="main-app">
-        <header>
-            <div id="group-title" style="font-weight: bold;">দেশ নির্বাচন করুন</div>
-            <div style="display: flex; gap: 18px; font-size: 1.2em;">
-                <span onclick="toggleSearch()" style="cursor:pointer">🔍</span>
-                <span onclick="location.reload()" style="cursor:pointer">🚪</span>
-            </div>
-        </header>
-
-        <div id="search-bar">
-            <input type="text" id="user-search" placeholder="কার মেসেজ খুঁজছেন? নাম লিখুন..." oninput="filterMessages()">
+    <header>
+        <div id="group-title">Group Name</div>
+        <div style="display: flex; gap: 15px;">
+            <span onclick="toggleSearch()" style="cursor:pointer">🔍</span>
+            <span onclick="location.reload()" style="cursor:pointer">লগ আউট</span>
         </div>
+    </header>
 
-        <div id="chat-window"></div>
-
-        <footer>
-            <input type="text" id="msg-input" placeholder="মেসেজ লিখুন..." onkeypress="if(event.key==='Enter') sendMessage()">
-            <button onclick="sendMessage()" style="width: auto; padding: 10px 20px;">পাঠান</button>
-        </footer>
+    <div id="search-bar">
+        <input type="text" id="user-search" placeholder="নাম লিখে সার্চ করুন..." oninput="filterMessages()">
     </div>
+
+    <div id="chat-window"></div>
+
+    <footer>
+        <input type="text" id="msg-input" placeholder="মেসেজ লিখুন..." onkeypress="if(event.key==='Enter') sendMessage()">
+        <button class="send-btn" onclick="sendMessage()">➤</button>
+    </footer>
 
     <script>
-        // পৃথিবীর সব দেশ (অটোমেটিক লিস্ট)
-        const countries = ["Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Brazil", "Brunei", "Bulgaria", "Cambodia", "Cameroon", "Canada", "Chile", "China", "Colombia", "Cuba", "Cyprus", "Denmark", "Egypt", "Finland", "France", "Germany", "Ghana", "Greece", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Italy", "Japan", "Jordan", "Kenya", "Kuwait", "Malaysia", "Mexico", "Nepal", "Netherlands", "New Zealand", "Norway", "Oman", "Pakistan", "Palestine", "Philippines", "Poland", "Portugal", "Qatar", "Russia", "Saudi Arabia", "Singapore", "South Africa", "South Korea", "Spain", "Sri Lanka", "Sweden", "Switzerland", "Thailand", "Turkey", "UAE", "UK", "Ukraine", "USA", "Vietnam", "Yemen"];
-        
+        const countries = ["Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Bangladesh", "Brazil", "Canada", "China", "Denmark", "Egypt", "France", "Germany", "India", "Indonesia", "Italy", "Japan", "Malaysia", "Mexico", "Nepal", "Netherlands", "Norway", "Pakistan", "Palestine", "Russia", "Saudi Arabia", "Singapore", "South Africa", "Spain", "Sri Lanka", "Switzerland", "Thailand", "Turkey", "UAE", "UK", "USA", "Vietnam"];
         const select = document.getElementById('country-select');
         countries.forEach(c => {
             let opt = document.createElement('option');
@@ -74,32 +67,25 @@
             select.appendChild(opt);
         });
 
-        // Gun.js Initialize
         const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
-        let currentUser = "", userCode = "", currentCountry = "";
+        let currentUser, userCode, currentCountry;
 
         function login() {
-            currentUser = document.getElementById('username').value.trim();
+            currentUser = document.getElementById('username').value;
             let key = document.getElementById('private-key').value;
             currentCountry = document.getElementById('country-select').value;
+            if(!currentUser || !key) return alert("নাম এবং কি দিন");
 
-            if(!currentUser || !key) return alert("দয়া করে নাম এবং কি লিখুন");
-
-            // প্রাইভেট কি থেকে ৪ অক্ষরের ইউনিক কোড তৈরি
             userCode = btoa(key).substring(0, 4).toUpperCase();
-            
             document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('main-app').style.display = 'flex';
-            document.getElementById('group-title').innerText = currentCountry + " Room";
-
+            document.getElementById('group-title').innerText = currentCountry + " Group";
             loadMessages();
         }
 
         function sendMessage() {
             const input = document.getElementById('msg-input');
-            if(!input.value.trim()) return;
-
-            gun.get('world-chat-v1-' + currentCountry).set({
+            if(!input.value) return;
+            gun.get('chat-v2-' + currentCountry).set({
                 name: currentUser,
                 code: userCode,
                 text: input.value,
@@ -110,8 +96,7 @@
 
         function loadMessages() {
             const view = document.getElementById('chat-window');
-            // 'map().once()' এর বদলে 'map().on()' ব্যবহার করলে অফলাইন ডাটাও আসবে
-            gun.get('world-chat-v1-' + currentCountry).map().on((data) => {
+            gun.get('chat-v2-' + currentCountry).map().on((data) => {
                 if(data && data.text) {
                     const div = document.createElement('div');
                     div.className = 'msg';
@@ -124,12 +109,12 @@
         }
 
         function toggleSearch() {
-            const sb = document.getElementById('search-bar');
-            sb.style.display = sb.style.display === 'block' ? 'none' : 'block';
+            let s = document.getElementById('search-bar');
+            s.style.display = s.style.display === 'block' ? 'none' : 'block';
         }
 
         function filterMessages() {
-            const term = document.getElementById('user-search').value.toLowerCase();
+            let term = document.getElementById('user-search').value.toLowerCase();
             document.querySelectorAll('.msg').forEach(m => {
                 m.style.display = m.getAttribute('data-user').includes(term) ? 'block' : 'none';
             });
